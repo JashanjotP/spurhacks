@@ -15,13 +15,18 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { Bot, Phone, Settings, BarChart3, LogOut, User } from "lucide-react"
+import { Bot, Phone, Settings, BarChart3, LogOut, User, Grid3X3 } from "lucide-react"
 
 const navigation = [
   {
     title: "Dashboard",
     href: "/dashboard",
     icon: BarChart3,
+  },
+  {
+    title: "Portals",
+    href: "/dashboard/portals",
+    icon: Grid3X3,
   },
   {
     title: "Agents",

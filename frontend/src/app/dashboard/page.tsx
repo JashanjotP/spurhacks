@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Bot, Phone, TrendingUp, Users } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 interface OnboardingData {
   agentType: "faq" | "booking" | "order" | ""
@@ -48,26 +49,26 @@ export default function DashboardPage() {
   const stats = [
     {
       title: "Active Agents",
-      value: 1,
+      value: 8,
       description: "AI agents currently active",
       icon: Bot,
     },
     {
       title: "Total Calls",
-      value: 0,
+      value: 7482,
       description: "Calls in the last 30 days",
       icon: Phone,
     },
     {
       title: "Avg Duration",
-      value: "0:00",
+      value: "6:45",
       description: "Average call duration",
       icon: TrendingUp,
     },
     {
-      title: "Total Agents",
-      value: 1,
-      description: "All configured agents",
+      title: "Total Portals",
+      value: 10,
+      description: "All configured portals",
       icon: Users,
     },
   ]
@@ -127,9 +128,18 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Get started with your AI voice agent</CardDescription>
+            <CardDescription>Get started with your AI voice agents</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <h4 className="font-medium">Explore Portals</h4>
+              <p className="text-sm text-muted-foreground">
+                View and manage all 10 AI agent portals across different business domains.
+              </p>
+              <Button asChild size="sm">
+                <a href="/dashboard/portals">View All Portals</a>
+              </Button>
+            </div>
             <div className="space-y-2">
               <h4 className="font-medium">Test Your Agent</h4>
               <p className="text-sm text-muted-foreground">
@@ -139,12 +149,6 @@ export default function DashboardPage() {
             <div className="space-y-2">
               <h4 className="font-medium">Update Knowledge Base</h4>
               <p className="text-sm text-muted-foreground">Add more information to improve your agent's responses.</p>
-            </div>
-            <div className="space-y-2">
-              <h4 className="font-medium">View Call Analytics</h4>
-              <p className="text-sm text-muted-foreground">
-                Monitor performance and see how your agent is helping customers.
-              </p>
             </div>
           </CardContent>
         </Card>
