@@ -17,31 +17,33 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Save } from "lucide-react";
 
-interface Agent {
+export interface Agent {
   id: string;
   name: string;
-  description: string;
-  knowledge_base: string;
-  system_prompt: string;
-  phone_number?: string;
-  is_active: boolean;
+  model: string;
+  prompt: string;
+  voice: string;
+  language: string;
+  isActive: boolean;
 }
 
 interface AgentFormProps {
-  agent?: Agent;
-  onSuccess?: () => void;
+  agent?: Agent | null;
+  onSuccess: (agent: Omit<Agent, 'id' | 'isActive'>) => void;
+  onCancel: () => void;
 }
 
-export function AgentForm({ agent, onSuccess }: AgentFormProps) {
+export function AgentForm({ agent, onSuccess, onCancel }: AgentFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     name: agent?.name || "",
-    description: agent?.description || "",
-    knowledge_base: agent?.knowledge_base || "",
-    system_prompt:
-      agent?.system_prompt ||
-      "You are a helpful AI assistant for this business. Answer questions based on the provided knowledge base.",
+    model: agent?.model || "GPT-4o",
+    prompt:
+      agent?.prompt ||
+      "You are a helpful AI assistant. Your main goal is to assist users effectively.",
+    voice: agent?.voice || "onyx",
+    language: agent?.language || "English",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,9 +53,7 @@ export function AgentForm({ agent, onSuccess }: AgentFormProps) {
 
     // Simulate API call
     setTimeout(() => {
-      console.log("Agent data:", formData);
-      setLoading(false);
-      onSuccess?.();
+      onSuccess(formData);
     }, 1000);
   };
 
@@ -70,7 +70,7 @@ export function AgentForm({ agent, onSuccess }: AgentFormProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Agent Name</Label>
             <Input
@@ -79,48 +79,57 @@ export function AgentForm({ agent, onSuccess }: AgentFormProps) {
               value={formData.name}
               onChange={(e) => handleChange("name", e.target.value)}
               required
+              className="bg-slate-800/50 border-slate-700 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500/20"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="model">Language Model</Label>
             <Input
-              id="description"
-              placeholder="Brief description of what this agent does"
-              value={formData.description}
-              onChange={(e) => handleChange("description", e.target.value)}
+              id="model"
+              placeholder="e.g., GPT-4o"
+              value={formData.model}
+              onChange={(e) => handleChange("model", e.target.value)}
+              required
+              className="bg-slate-800/50 border-slate-700 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500/20"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="knowledge_base">Knowledge Base</Label>
+            <Label htmlFor="prompt">System Prompt</Label>
             <Textarea
-              id="knowledge_base"
-              placeholder="Enter your business information, FAQs, policies, etc. This will be used to answer customer questions."
-              value={formData.knowledge_base}
-              onChange={(e) => handleChange("knowledge_base", e.target.value)}
-              rows={8}
-              className="resize-none"
-            />
-            <p className="text-sm text-muted-foreground">
-              Provide detailed information about your business, products,
-              services, and common questions.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="system_prompt">System Prompt</Label>
-            <Textarea
-              id="system_prompt"
+              id="prompt"
               placeholder="Instructions for how the AI should behave and respond"
-              value={formData.system_prompt}
-              onChange={(e) => handleChange("system_prompt", e.target.value)}
-              rows={4}
-              className="resize-none"
+              value={formData.prompt}
+              onChange={(e) => handleChange("prompt", e.target.value)}
+              rows={6}
+              className="resize-none bg-slate-800/50 border-slate-700 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500/20"
             />
-            <p className="text-sm text-muted-foreground">
-              Define the personality and behavior of your AI agent.
-            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="voice">Voice</Label>
+              <Input
+                id="voice"
+                placeholder="e.g., onyx"
+                value={formData.voice}
+                onChange={(e) => handleChange("voice", e.target.value)}
+                required
+                className="bg-slate-800/50 border-slate-700 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500/20"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="language">Language</Label>
+              <Input
+                id="language"
+                placeholder="e.g., English"
+                value={formData.language}
+                onChange={(e) => handleChange("language", e.target.value)}
+                required
+                className="bg-slate-800/50 border-slate-700 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500/20"
+              />
+            </div>
           </div>
 
           {error && (
@@ -129,11 +138,15 @@ export function AgentForm({ agent, onSuccess }: AgentFormProps) {
             </Alert>
           )}
 
-          <Button type="submit" disabled={loading} className="w-full">
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            <Save className="mr-2 h-4 w-4" />
-            {agent ? "Update Agent" : "Create Agent"}
-          </Button>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="ghost" onClick={onCancel} className="text-slate-300 hover:bg-slate-700 hover:text-white">
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300">
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {agent ? "Update Agent" : "Create Agent"}
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>

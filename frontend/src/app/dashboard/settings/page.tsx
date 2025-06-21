@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Settings, Phone, Key, Copy, Brain, Shield, Zap } from "lucide-react";
+import { Settings, Phone, Key, Copy, Brain, Shield, Zap, Save, Check } from "lucide-react";
+import { toast } from "sonner";
 
 // Floating Orb Component
 const FloatingOrb = ({ delay = 0, size = 100, color = "blue" }: { delay?: number; size?: number; color?: string }) => {
@@ -57,14 +58,26 @@ const FloatingOrb = ({ delay = 0, size = 100, color = "blue" }: { delay?: number
 }
 
 export default function SettingsPage() {
-  const [copied, setCopied] = useState(false);
-
-  const webhookUrl = "https://your-app.vercel.app/api/twilio/webhook";
+  const [twilioSid, setTwilioSid] = useState("ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+  const [twilioAuthToken, setTwilioAuthToken] = useState("sk_xxxxxxxxxxxxxxxxxxxxxxxxxx");
+  const [openaiApiKey, setOpenaiApiKey] = useState("sk_xxxxxxxxxxxxxxxxxxxxxxxxxx");
+  const webhookUrl = "https://api.example.com/webhook/12345";
 
   const copyWebhookUrl = () => {
     navigator.clipboard.writeText(webhookUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    toast.success("Webhook URL copied to clipboard!");
+  };
+
+  const handleSaveTwilio = () => {
+    // In a real app, you would save these to a secure backend
+    console.log("Saving Twilio settings:", { twilioSid, twilioAuthToken });
+    toast.success("Twilio settings saved!");
+  };
+
+  const handleSaveOpenAI = () => {
+    // In a real app, you would save this to a secure backend
+    console.log("Saving OpenAI API Key");
+    toast.success("OpenAI API Key saved!");
   };
 
   return (
@@ -115,23 +128,30 @@ export default function SettingsPage() {
                   <Label htmlFor="twilio-sid" className="text-slate-300">Account SID</Label>
                   <Input
                     id="twilio-sid"
-                    placeholder="Enter your Twilio Account SID"
-                    type="password"
+                    value={twilioSid}
+                    onChange={(e) => setTwilioSid(e.target.value)}
                     className="bg-slate-800/50 border-slate-700 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500/20 backdrop-blur-sm"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="twilio-token" className="text-slate-300">Auth Token</Label>
+                  <Label htmlFor="twilio-auth" className="text-slate-300">Auth Token</Label>
                   <Input
-                    id="twilio-token"
-                    placeholder="Enter your Twilio Auth Token"
+                    id="twilio-auth"
                     type="password"
+                    value={twilioAuthToken}
+                    onChange={(e) => setTwilioAuthToken(e.target.value)}
                     className="bg-slate-800/50 border-slate-700 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500/20 backdrop-blur-sm"
                   />
                 </div>
-                <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-                  Save Twilio Settings
-                </Button>
+                <div className="flex justify-end">
+                  <Button
+                    onClick={handleSaveTwilio}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Twilio Settings
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -155,23 +175,21 @@ export default function SettingsPage() {
                   <Label htmlFor="openai-key" className="text-slate-300">API Key</Label>
                   <Input
                     id="openai-key"
-                    placeholder="Enter your OpenAI API Key"
                     type="password"
+                    value={openaiApiKey}
+                    onChange={(e) => setOpenaiApiKey(e.target.value)}
                     className="bg-slate-800/50 border-slate-700 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500/20 backdrop-blur-sm"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="openai-model" className="text-slate-300">Model</Label>
-                  <Input
-                    id="openai-model"
-                    placeholder="gpt-4o"
-                    defaultValue="gpt-4o"
-                    className="bg-slate-800/50 border-slate-700 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500/20 backdrop-blur-sm"
-                  />
+                <div className="flex justify-end">
+                  <Button
+                    onClick={handleSaveOpenAI}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    Save API Key
+                  </Button>
                 </div>
-                <Button className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-                  Save OpenAI Settings
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -213,14 +231,6 @@ export default function SettingsPage() {
                     Use this URL in your Twilio webhook configuration
                   </p>
                 </div>
-
-                {copied && (
-                  <Alert className="bg-green-500/20 border-green-500/30 text-green-300">
-                    <AlertDescription>
-                      Webhook URL copied to clipboard!
-                    </AlertDescription>
-                  </Alert>
-                )}
               </div>
             </CardContent>
           </Card>

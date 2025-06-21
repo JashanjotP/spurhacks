@@ -16,11 +16,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Brain } from 'lucide-react'
+import { toast } from 'sonner'
 
 export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
@@ -28,7 +28,6 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
     e.preventDefault()
     const supabase = createClient()
     setIsLoading(true)
-    setError(null)
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -36,9 +35,10 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
         password,
       })
       if (error) throw error
+      toast.success('Login successful!')
       router.push('/dashboard')
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'An error occurred')
+      toast.error(error instanceof Error ? error.message : 'An unknown error occurred')
     } finally {
       setIsLoading(false)
     }
@@ -93,7 +93,6 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
                   className="bg-slate-800/50 border-slate-700 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500/20"
                 />
               </div>
-              {error && <p className="text-sm text-red-400 bg-red-500/10 p-3 rounded-lg">{error}</p>}
               <Button 
                 type="submit" 
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300" 
