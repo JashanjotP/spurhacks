@@ -79,8 +79,8 @@ const AgentTypeCard: React.FC<AgentTypeCardProps> = ({
   <Card
     className={`cursor-pointer transition-all duration-300 hover:scale-105 ${
       isSelected
-        ? "border-blue-500 bg-blue-50/50 shadow-lg ring-2 ring-blue-500/20"
-        : "border-gray-200 hover:border-blue-300 hover:shadow-md"
+        ? "border-blue-500 bg-blue-900/20 shadow-lg ring-2 ring-blue-500/20"
+        : "border-slate-700 bg-slate-800 hover:border-blue-400 hover:bg-slate-700"
     }`}
     onClick={onSelect}
   >
@@ -88,20 +88,20 @@ const AgentTypeCard: React.FC<AgentTypeCardProps> = ({
       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-purple-600">
         <Icon className="h-8 w-8 text-white" />
       </div>
-      <CardTitle className="text-xl">{title}</CardTitle>
-      <CardDescription>{description}</CardDescription>
+      <CardTitle className="text-xl text-white">{title}</CardTitle>
+      <CardDescription className="text-slate-300">{description}</CardDescription>
     </CardHeader>
     <CardContent>
       <ul className="space-y-2">
         {features.map((feature, index) => (
-          <li key={index} className="flex items-center text-sm">
-            <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+          <li key={index} className="flex items-center text-sm text-slate-300">
+            <CheckCircle className="mr-2 h-4 w-4 text-green-400" />
             {feature}
           </li>
         ))}
       </ul>
       {isSelected && (
-        <Badge className="mt-4 w-full justify-center bg-blue-500 hover:bg-blue-600">
+        <Badge className="mt-4 w-full justify-center bg-blue-600 hover:bg-blue-700">
           Selected
         </Badge>
       )}
@@ -278,10 +278,10 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               <Sparkles className="w-10 h-10 text-white" />
             </div>
             <div>
-              <h2 className="text-3xl font-bold mb-4">
+              <h2 className="text-3xl font-bold mb-4 text-white">
                 Welcome to VoiceAgent.ai!
               </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              <p className="text-lg text-slate-300 max-w-2xl mx-auto">
                 Let's set up your first AI voice agent in just a few minutes.
                 Your agent will be ready to handle customer calls 24/7,
                 providing instant support and never missing an opportunity.
@@ -289,29 +289,29 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
               <div className="text-center">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                  <Bot className="w-6 h-6 text-blue-600" />
+                <div className="w-12 h-12 bg-blue-900/50 rounded-lg flex items-center justify-center mx-auto mb-3">
+                  <Bot className="w-6 h-6 text-blue-400" />
                 </div>
-                <h3 className="font-semibold mb-2">Choose Agent Type</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="font-semibold mb-2 text-white">Choose Agent Type</h3>
+                <p className="text-sm text-slate-400">
                   Select the perfect agent for your business needs
                 </p>
               </div>
               <div className="text-center">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                  <Upload className="w-6 h-6 text-green-600" />
+                <div className="w-12 h-12 bg-green-900/50 rounded-lg flex items-center justify-center mx-auto mb-3">
+                  <Upload className="w-6 h-6 text-green-400" />
                 </div>
-                <h3 className="font-semibold mb-2">Upload Knowledge</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="font-semibold mb-2 text-white">Upload Knowledge</h3>
+                <p className="text-sm text-slate-400">
                   Train your agent with your business information
                 </p>
               </div>
               <div className="text-center">
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                  <Phone className="w-6 h-6 text-purple-600" />
+                <div className="w-12 h-12 bg-purple-900/50 rounded-lg flex items-center justify-center mx-auto mb-3">
+                  <Phone className="w-6 h-6 text-purple-400" />
                 </div>
-                <h3 className="font-semibold mb-2">Get Phone Number</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="font-semibold mb-2 text-white">Get Phone Number</h3>
+                <p className="text-sm text-slate-400">
                   Receive a dedicated number for your agent
                 </p>
               </div>
@@ -323,10 +323,10 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h2 className="text-2xl font-bold mb-2">
+              <h2 className="text-2xl font-bold mb-2 text-white">
                 Choose Your Agent Type
               </h2>
-              <p className="text-muted-foreground">
+              <p className="text-slate-300">
                 Select the type of AI agent that best fits your business needs
               </p>
             </div>
@@ -347,16 +347,16 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         return (
           <div className="space-y-6 max-w-2xl mx-auto">
             <div className="text-center">
-              <h2 className="text-2xl font-bold mb-2">
+              <h2 className="text-2xl font-bold mb-2 text-white">
                 Tell Us About Your Business
               </h2>
-              <p className="text-muted-foreground">
+              <p className="text-slate-300">
                 Help us customize your agent for your specific business
               </p>
             </div>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="businessName">Business Name</Label>
+                <Label htmlFor="businessName" className="text-white">Business Name</Label>
                 <Input
                   id="businessName"
                   placeholder="Enter your business name"
@@ -364,22 +364,23 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                   onChange={(e) =>
                     setData({ ...data, businessName: e.target.value })
                   }
+                  className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-400"
                 />
               </div>
               <div>
-                <Label htmlFor="businessType">Business Type</Label>
+                <Label htmlFor="businessType" className="text-white">Business Type</Label>
                 <Select
                   value={data.businessType}
                   onValueChange={(value) =>
                     setData({ ...data, businessType: value })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
                     <SelectValue placeholder="Select your business type" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-slate-800 border-slate-700">
                     {businessTypes.map((type) => (
-                      <SelectItem key={type} value={type}>
+                      <SelectItem key={type} value={type} className="text-white hover:bg-slate-700">
                         {type}
                       </SelectItem>
                     ))}
@@ -394,10 +395,10 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         return (
           <div className="space-y-6 max-w-2xl mx-auto">
             <div className="text-center">
-              <h2 className="text-2xl font-bold mb-2">
+              <h2 className="text-2xl font-bold mb-2 text-white">
                 Upload Your Knowledge Base
               </h2>
-              <p className="text-muted-foreground">
+              <p className="text-slate-300">
                 Provide information for your agent to learn about your business,
                 products, and services
               </p>
@@ -407,15 +408,15 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               <Card
                 className={`cursor-pointer transition-all ${
                   data.knowledgeSource === "upload"
-                    ? "border-blue-500 bg-blue-50/50 ring-2 ring-blue-500/20"
-                    : "hover:border-blue-300"
+                    ? "border-blue-500 bg-blue-900/20 ring-2 ring-blue-500/20"
+                    : "border-slate-700 bg-slate-800 hover:border-blue-400"
                 }`}
                 onClick={() => setData({ ...data, knowledgeSource: "upload" })}
               >
                 <CardContent className="p-6 text-center">
-                  <Upload className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-                  <h3 className="font-semibold mb-2">Upload Files</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <Upload className="w-12 h-12 text-blue-400 mx-auto mb-4" />
+                  <h3 className="font-semibold mb-2 text-white">Upload Files</h3>
+                  <p className="text-sm text-slate-300">
                     Upload PDFs, documents, or CSV files
                   </p>
                 </CardContent>
@@ -424,15 +425,15 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               <Card
                 className={`cursor-pointer transition-all ${
                   data.knowledgeSource === "url"
-                    ? "border-blue-500 bg-blue-50/50 ring-2 ring-blue-500/20"
-                    : "hover:border-blue-300"
+                    ? "border-blue-500 bg-blue-900/20 ring-2 ring-blue-500/20"
+                    : "border-slate-700 bg-slate-800 hover:border-blue-400"
                 }`}
                 onClick={() => setData({ ...data, knowledgeSource: "url" })}
               >
                 <CardContent className="p-6 text-center">
-                  <Globe className="w-12 h-12 text-green-600 mx-auto mb-4" />
-                  <h3 className="font-semibold mb-2">Website URL</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <Globe className="w-12 h-12 text-green-400 mx-auto mb-4" />
+                  <h3 className="font-semibold mb-2 text-white">Website URL</h3>
+                  <p className="text-sm text-slate-300">
                     Let us crawl your website for information
                   </p>
                 </CardContent>
@@ -441,10 +442,10 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
             {data.knowledgeSource === "upload" && (
               <div className="space-y-4">
-                <Label htmlFor="file-upload">Upload Files</Label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-sm text-muted-foreground mb-4">
+                <Label htmlFor="file-upload" className="text-white">Upload Files</Label>
+                <div className="border-2 border-dashed border-slate-600 rounded-lg p-8 text-center bg-slate-800/50">
+                  <FileText className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                  <p className="text-sm text-slate-300 mb-4">
                     Drag and drop files here, or click to browse
                   </p>
                   <Input
@@ -463,13 +464,14 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                     onClick={() =>
                       document.getElementById("file-upload")?.click()
                     }
+                    className="border-slate-600 text-slate-300 hover:bg-slate-700"
                   >
                     Choose Files
                   </Button>
                   {data.uploadedFiles.length > 0 && (
                     <div className="mt-4">
-                      <p className="text-sm font-medium">Selected files:</p>
-                      <ul className="text-sm text-muted-foreground">
+                      <p className="text-sm font-medium text-white">Selected files:</p>
+                      <ul className="text-sm text-slate-300">
                         {data.uploadedFiles.map((file, index) => (
                           <li key={index}>{file.name}</li>
                         ))}
@@ -482,7 +484,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
             {data.knowledgeSource === "url" && (
               <div>
-                <Label htmlFor="websiteUrl">Website URL</Label>
+                <Label htmlFor="websiteUrl" className="text-white">Website URL</Label>
                 <Input
                   id="websiteUrl"
                   placeholder="https://your-website.com"
@@ -490,21 +492,22 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                   onChange={(e) =>
                     setData({ ...data, websiteUrl: e.target.value })
                   }
+                  className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-400"
                 />
                 <Button
-                  className="mt-2"
+                  className="mt-2 bg-blue-600 hover:bg-blue-700"
                   //   onClick={handleCrawlWebsite}
                   disabled={!data.websiteUrl || isCrawling}
                 >
                   {isCrawling ? "Crawling..." : "Crawl Website"}
                 </Button>
                 {crawlResult && (
-                  <div className="mt-2 text-green-600">{crawlResult}</div>
+                  <div className="mt-2 text-green-400">{crawlResult}</div>
                 )}
                 {crawlError && (
-                  <div className="mt-2 text-red-600">{crawlError}</div>
+                  <div className="mt-2 text-red-400">{crawlError}</div>
                 )}
-                <p className="text-sm text-muted-foreground mt-2">
+                <p className="text-sm text-slate-400 mt-2">
                   We'll crawl your website to extract relevant information for
                   your agent
                 </p>
@@ -517,20 +520,20 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         return (
           <div className="space-y-6 max-w-2xl mx-auto">
             <div className="text-center">
-              <h2 className="text-2xl font-bold mb-2">Configure Your Agent</h2>
-              <p className="text-muted-foreground">
+              <h2 className="text-2xl font-bold mb-2 text-white">Configure Your Agent</h2>
+              <p className="text-slate-300">
                 Set up business hours and customize your agent's greeting
               </p>
             </div>
 
             <div className="space-y-6">
               <div>
-                <Label className="text-base font-semibold">
+                <Label className="text-base font-semibold text-white">
                   Business Hours
                 </Label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
                   <div>
-                    <Label htmlFor="start-time">Start Time</Label>
+                    <Label htmlFor="start-time" className="text-white">Start Time</Label>
                     <Input
                       id="start-time"
                       type="time"
@@ -544,10 +547,11 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                           },
                         })
                       }
+                      className="bg-slate-800 border-slate-700 text-white"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="end-time">End Time</Label>
+                    <Label htmlFor="end-time" className="text-white">End Time</Label>
                     <Input
                       id="end-time"
                       type="time"
@@ -561,10 +565,11 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                           },
                         })
                       }
+                      className="bg-slate-800 border-slate-700 text-white"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="timezone">Timezone</Label>
+                    <Label htmlFor="timezone" className="text-white">Timezone</Label>
                     <Select
                       value={data.businessHours.timezone}
                       onValueChange={(value) =>
@@ -577,12 +582,12 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                         })
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-slate-800 border-slate-700">
                         {timezones.map((tz) => (
-                          <SelectItem key={tz} value={tz}>
+                          <SelectItem key={tz} value={tz} className="text-white hover:bg-slate-700">
                             {tz.replace("_", " ")}
                           </SelectItem>
                         ))}
@@ -593,7 +598,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               </div>
 
               <div>
-                <Label htmlFor="greeting">Agent Greeting</Label>
+                <Label htmlFor="greeting" className="text-white">Agent Greeting</Label>
                 <Textarea
                   id="greeting"
                   placeholder={`Hello! Thank you for calling ${
@@ -604,8 +609,9 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                     setData({ ...data, greeting: e.target.value })
                   }
                   rows={4}
+                  className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-400"
                 />
-                <p className="text-sm text-muted-foreground mt-2">
+                <p className="text-sm text-slate-400 mt-2">
                   This greeting will be played when customers call your agent
                 </p>
               </div>
@@ -617,26 +623,26 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         return (
           <div className="space-y-6 max-w-2xl mx-auto">
             <div className="text-center">
-              <h2 className="text-2xl font-bold mb-2">Get Your Phone Number</h2>
-              <p className="text-muted-foreground">
+              <h2 className="text-2xl font-bold mb-2 text-white">Get Your Phone Number</h2>
+              <p className="text-slate-300">
                 We're setting up a dedicated phone number for your AI agent
               </p>
             </div>
 
-            <Card className="p-6">
+            <Card className="p-6 bg-slate-800 border-slate-700">
               <div className="text-center space-y-4">
                 <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto">
                   <Phone className="w-8 h-8 text-white animate-pulse" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold mb-2">
+                  <h3 className="text-lg font-semibold mb-2 text-white">
                     Provisioning Phone Number...
                   </h3>
-                  <p className="text-muted-foreground">
+                  <p className="text-slate-300">
                     This usually takes just a few seconds
                   </p>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-slate-700 rounded-full h-2">
                   <div
                     className="bg-blue-600 h-2 rounded-full animate-pulse"
                     style={{ width: "75%" }}
@@ -645,9 +651,9 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               </div>
             </Card>
 
-            <Alert>
-              <Phone className="h-4 w-4" />
-              <AlertDescription>
+            <Alert className="border-slate-700 bg-slate-800">
+              <Phone className="h-4 w-4 text-blue-400" />
+              <AlertDescription className="text-slate-300">
                 Your phone number will be ready in the next step. You can start
                 receiving calls immediately after setup is complete.
               </AlertDescription>
@@ -659,48 +665,48 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         return (
           <div className="space-y-6 max-w-2xl mx-auto">
             <div className="text-center">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle className="w-10 h-10 text-green-600" />
+              <div className="w-20 h-20 bg-green-900/50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle className="w-10 h-10 text-green-400" />
               </div>
-              <h2 className="text-3xl font-bold mb-2">
+              <h2 className="text-3xl font-bold mb-2 text-white">
                 🎉 Your Agent is Ready!
               </h2>
-              <p className="text-muted-foreground">
+              <p className="text-slate-300">
                 Congratulations! Your AI voice agent has been successfully
                 configured and is ready to handle calls.
               </p>
             </div>
 
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Agent Summary</h3>
+            <Card className="p-6 bg-slate-800 border-slate-700">
+              <h3 className="text-lg font-semibold mb-4 text-white">Agent Summary</h3>
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Agent Type:</span>
-                  <span className="font-medium capitalize">
+                  <span className="text-slate-300">Agent Type:</span>
+                  <span className="font-medium capitalize text-white">
                     {data.agentType} Agent
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Business:</span>
-                  <span className="font-medium">{data.businessName}</span>
+                  <span className="text-slate-300">Business:</span>
+                  <span className="font-medium text-white">{data.businessName}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Phone Number:</span>
-                  <span className="font-medium font-mono">
+                  <span className="text-slate-300">Phone Number:</span>
+                  <span className="font-medium font-mono text-white">
                     +1 (555) 123-4567
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Business Hours:</span>
-                  <span className="font-medium">
+                  <span className="text-slate-300">Business Hours:</span>
+                  <span className="font-medium text-white">
                     {data.businessHours.start} - {data.businessHours.end}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">
+                  <span className="text-slate-300">
                     Knowledge Source:
                   </span>
-                  <span className="font-medium capitalize">
+                  <span className="font-medium capitalize text-white">
                     {data.knowledgeSource === "upload"
                       ? "Uploaded Files"
                       : "Website URL"}
@@ -710,27 +716,27 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card className="p-4">
+              <Card className="p-4 bg-slate-800 border-slate-700">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Mic className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 bg-blue-900/50 rounded-lg flex items-center justify-center">
+                    <Mic className="w-5 h-5 text-blue-400" />
                   </div>
                   <div>
-                    <h4 className="font-semibold">Test Your Agent</h4>
-                    <p className="text-sm text-muted-foreground">
+                    <h4 className="font-semibold text-white">Test Your Agent</h4>
+                    <p className="text-sm text-slate-300">
                       Call your number to test the setup
                     </p>
                   </div>
                 </div>
               </Card>
-              <Card className="p-4">
+              <Card className="p-4 bg-slate-800 border-slate-700">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                    <BarChart3 className="w-5 h-5 text-green-600" />
+                  <div className="w-10 h-10 bg-green-900/50 rounded-lg flex items-center justify-center">
+                    <BarChart3 className="w-5 h-5 text-green-400" />
                   </div>
                   <div>
-                    <h4 className="font-semibold">View Analytics</h4>
-                    <p className="text-sm text-muted-foreground">
+                    <h4 className="font-semibold text-white">View Analytics</h4>
+                    <p className="text-sm text-slate-300">
                       Monitor calls and performance
                     </p>
                   </div>
@@ -746,23 +752,23 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+    <div className="min-h-screen bg-slate-950 p-6">
       <div className="max-w-4xl mx-auto">
         {/* Progress Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold">Setup Your AI Voice Agent</h1>
-            <Badge variant="outline">
+            <h1 className="text-2xl font-bold text-white">Setup Your AI Voice Agent</h1>
+            <Badge variant="outline" className="border-slate-700 text-slate-300">
               Step {currentStep + 1} of {steps.length}
             </Badge>
           </div>
-          <Progress value={progress} className="h-2" />
-          <div className="flex justify-between mt-2 text-sm text-muted-foreground">
+          <Progress value={progress} className="h-2 bg-slate-800" />
+          <div className="flex justify-between mt-2 text-sm text-slate-400">
             {steps.map((step, index) => (
               <span
                 key={step}
                 className={`${
-                  index <= currentStep ? "text-blue-600 font-medium" : ""
+                  index <= currentStep ? "text-blue-400 font-medium" : ""
                 }`}
               >
                 {step}
@@ -772,8 +778,8 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         </div>
 
         {/* Step Content */}
-        <Card className="mb-8">
-          <CardContent className="p-8">{renderStep()}</CardContent>
+        <Card className="mb-8 bg-slate-900 border-slate-800">
+          <CardContent className="p-8 text-white">{renderStep()}</CardContent>
         </Card>
 
         {/* Navigation */}
@@ -782,7 +788,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             variant="outline"
             onClick={handlePrevious}
             disabled={currentStep === 0}
-            className="flex items-center"
+            className="flex items-center border-slate-700 text-slate-300 hover:bg-slate-800"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Previous
@@ -800,7 +806,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             <Button
               onClick={handleNext}
               disabled={!canProceed()}
-              className="flex items-center"
+              className="flex items-center bg-blue-600 hover:bg-blue-700"
             >
               Next
               <ArrowRight className="w-4 h-4 ml-2" />
