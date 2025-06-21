@@ -1,10 +1,10 @@
-"use client"
-import type React from "react"
-import { useState, useEffect, useRef } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
+"use client";
+import type React from "react";
+import { useState, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Phone,
   ArrowRight,
@@ -20,40 +20,48 @@ import {
   Quote,
   X,
   Send,
-} from "lucide-react"
+} from "lucide-react";
 
 interface FloatingOrbProps {
-  delay?: number
-  size?: number
-  color?: "blue" | "purple" | "pink"
+  delay?: number;
+  size?: number;
+  color?: "blue" | "purple" | "pink";
 }
 
-const FloatingOrb: React.FC<FloatingOrbProps> = ({ delay = 0, size = 100, color = "blue" }) => {
-  const [position, setPosition] = useState({ x: 0, y: 0 })
-  const [scrollY, setScrollY] = useState(0)
+const FloatingOrb: React.FC<FloatingOrbProps> = ({
+  delay = 0,
+  size = 100,
+  color = "blue",
+}) => {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [scrollY, setScrollY] = useState(0);
 
   useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY)
-    window.addEventListener("scroll", handleScroll)
+    const handleScroll = () => setScrollY(window.scrollY);
+    window.addEventListener("scroll", handleScroll);
 
     const animate = () => {
       setPosition({
         x: Math.sin(Date.now() * 0.001 + delay) * 50 + scrollY * 0.1,
         y: Math.cos(Date.now() * 0.0015 + delay) * 30 + scrollY * 0.05,
-      })
-    }
+      });
+    };
 
-    const interval = setInterval(animate, 50)
+    const interval = setInterval(animate, 50);
     return () => {
-      clearInterval(interval)
-      window.removeEventListener("scroll", handleScroll)
-    }
-  }, [delay, scrollY])
+      clearInterval(interval);
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [delay, scrollY]);
 
   return (
     <div
       className={`absolute rounded-full opacity-20 blur-xl transition-all duration-1000 ${
-        color === "blue" ? "bg-blue-500" : color === "purple" ? "bg-purple-500" : "bg-pink-500"
+        color === "blue"
+          ? "bg-blue-500"
+          : color === "purple"
+          ? "bg-purple-500"
+          : "bg-pink-500"
       }`}
       style={{
         width: size,
@@ -62,41 +70,48 @@ const FloatingOrb: React.FC<FloatingOrbProps> = ({ delay = 0, size = 100, color 
         animation: "pulse 4s ease-in-out infinite",
       }}
     />
-  )
-}
+  );
+};
 
 interface FeatureCardProps {
-  icon: React.ComponentType<{ className?: string }>
-  title: string
-  description: string
-  delay?: number
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+  delay?: number;
 }
 
-const FeatureCard: React.FC<FeatureCardProps> = ({ icon: Icon, title, description, delay = 0 }) => {
-  const [isVisible, setIsVisible] = useState(false)
-  const cardRef = useRef<HTMLDivElement>(null)
+const FeatureCard: React.FC<FeatureCardProps> = ({
+  icon: Icon,
+  title,
+  description,
+  delay = 0,
+}) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setTimeout(() => setIsVisible(true), delay)
+          setTimeout(() => setIsVisible(true), delay);
         }
       },
-      { threshold: 0.1 },
-    )
+      { threshold: 0.1 }
+    );
 
     if (cardRef.current) {
-      observer.observe(cardRef.current)
+      observer.observe(cardRef.current);
     }
 
-    return () => observer.disconnect()
-  }, [delay])
+    return () => observer.disconnect();
+  }, [delay]);
 
   return (
     <Card
       ref={cardRef}
-      className={`group relative overflow-hidden border-0 bg-gradient-to-br from-slate-900/50 to-slate-800/50 backdrop-blur-xl hover:from-slate-800/60 hover:to-slate-700/60 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/20 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+      className={`group relative overflow-hidden border-0 bg-gradient-to-br from-slate-900/50 to-slate-800/50 backdrop-blur-xl hover:from-slate-800/60 hover:to-slate-700/60 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/20 ${
+        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
+      }`}
     >
       <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
       <CardContent className="p-8 relative z-10">
@@ -104,68 +119,83 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ icon: Icon, title, descriptio
           <Icon className="w-12 h-12 text-blue-400 group-hover:text-blue-300 transition-colors duration-300 group-hover:scale-110 transform" />
           <div className="absolute -inset-2 bg-blue-500/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </div>
-        <h3 className="text-xl font-bold text-white mb-3 group-hover:text-blue-100 transition-colors">{title}</h3>
-        <p className="text-slate-300 group-hover:text-slate-200 transition-colors">{description}</p>
+        <h3 className="text-xl font-bold text-white mb-3 group-hover:text-blue-100 transition-colors">
+          {title}
+        </h3>
+        <p className="text-slate-300 group-hover:text-slate-200 transition-colors">
+          {description}
+        </p>
       </CardContent>
     </Card>
-  )
-}
+  );
+};
 
 interface StatsCounterProps {
-  end: number
-  label: string
-  duration?: number
+  end: number;
+  label: string;
+  duration?: number;
 }
 
-const StatsCounter: React.FC<StatsCounterProps> = ({ end, label, duration = 2000 }) => {
-  const [count, setCount] = useState(0)
-  const [isVisible, setIsVisible] = useState(false)
-  const counterRef = useRef<HTMLDivElement>(null)
+const StatsCounter: React.FC<StatsCounterProps> = ({
+  end,
+  label,
+  duration = 2000,
+}) => {
+  const [count, setCount] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
+  const counterRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && !isVisible) {
-          setIsVisible(true)
-          let start = 0
-          const increment = end / (duration / 50)
+          setIsVisible(true);
+          let start = 0;
+          const increment = end / (duration / 50);
           const timer = setInterval(() => {
-            start += increment
+            start += increment;
             if (start >= end) {
-              setCount(end)
-              clearInterval(timer)
+              setCount(end);
+              clearInterval(timer);
             } else {
-              setCount(Math.floor(start))
+              setCount(Math.floor(start));
             }
-          }, 50)
+          }, 50);
         }
       },
-      { threshold: 0.5 },
-    )
+      { threshold: 0.5 }
+    );
 
     if (counterRef.current) {
-      observer.observe(counterRef.current)
+      observer.observe(counterRef.current);
     }
 
-    return () => observer.disconnect()
-  }, [end, duration, isVisible])
+    return () => observer.disconnect();
+  }, [end, duration, isVisible]);
 
   return (
     <div ref={counterRef} className="text-center">
-      <div className="text-4xl font-bold text-white mb-2">{count.toLocaleString()}+</div>
+      <div className="text-4xl font-bold text-white mb-2">
+        {count.toLocaleString()}+
+      </div>
       <div className="text-slate-400">{label}</div>
     </div>
-  )
-}
+  );
+};
 
 interface CallFlowStepProps {
-  step: number
-  title: string
-  description: string
-  isActive: boolean
+  step: number;
+  title: string;
+  description: string;
+  isActive: boolean;
 }
 
-const CallFlowStep: React.FC<CallFlowStepProps> = ({ step, title, description, isActive }) => (
+const CallFlowStep: React.FC<CallFlowStepProps> = ({
+  step,
+  title,
+  description,
+  isActive,
+}) => (
   <div
     className={`flex items-start space-x-4 p-6 rounded-xl transition-all duration-500 ${
       isActive
@@ -175,7 +205,9 @@ const CallFlowStep: React.FC<CallFlowStepProps> = ({ step, title, description, i
   >
     <div
       className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all duration-500 ${
-        isActive ? "bg-blue-500 text-white animate-pulse" : "bg-slate-600 text-slate-300"
+        isActive
+          ? "bg-blue-500 text-white animate-pulse"
+          : "bg-slate-600 text-slate-300"
       }`}
     >
       {step}
@@ -185,33 +217,33 @@ const CallFlowStep: React.FC<CallFlowStepProps> = ({ step, title, description, i
       <p className="text-slate-400 text-sm">{description}</p>
     </div>
   </div>
-)
+);
 
-const TypewriterText: React.FC<{ text: string; delay?: number }> = ({ text, delay = 0 }) => {
-  const [displayText, setDisplayText] = useState("")
-  const [currentIndex, setCurrentIndex] = useState(0)
+const TypewriterText: React.FC<{ text: string; delay?: number }> = ({
+  text,
+  delay = 0,
+}) => {
+  const [displayText, setDisplayText] = useState("");
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
-    const timer = setTimeout(
-      () => {
-        if (currentIndex < text.length) {
-          setDisplayText((prev) => prev + text[currentIndex])
-          setCurrentIndex((prev) => prev + 1)
-        }
-      },
-      delay + currentIndex * 100,
-    )
+    const timer = setTimeout(() => {
+      if (currentIndex < text.length) {
+        setDisplayText((prev) => prev + text[currentIndex]);
+        setCurrentIndex((prev) => prev + 1);
+      }
+    }, delay + currentIndex * 100);
 
-    return () => clearTimeout(timer)
-  }, [currentIndex, text, delay])
+    return () => clearTimeout(timer);
+  }, [currentIndex, text, delay]);
 
   return (
     <span>
       {displayText}
       <span className="animate-pulse">|</span>
     </span>
-  )
-}
+  );
+};
 
 const SoundWave: React.FC = () => {
   return (
@@ -228,16 +260,20 @@ const SoundWave: React.FC = () => {
         />
       ))}
     </div>
-  )
-}
+  );
+};
 
-const TestimonialCard: React.FC<{ name: string; company: string; text: string; isActive: boolean }> = ({
-  name,
-  company,
-  text,
-  isActive,
-}) => (
-  <div className={`transition-all duration-500 ${isActive ? "opacity-100 scale-100" : "opacity-0 scale-95 absolute"}`}>
+const TestimonialCard: React.FC<{
+  name: string;
+  company: string;
+  text: string;
+  isActive: boolean;
+}> = ({ name, company, text, isActive }) => (
+  <div
+    className={`transition-all duration-500 ${
+      isActive ? "opacity-100 scale-100" : "opacity-0 scale-95 absolute"
+    }`}
+  >
     <Card className="bg-slate-800/50 backdrop-blur border-slate-700">
       <CardContent className="p-8">
         <Quote className="w-8 h-8 text-blue-400 mb-4" />
@@ -254,20 +290,24 @@ const TestimonialCard: React.FC<{ name: string; company: string; text: string; i
       </CardContent>
     </Card>
   </div>
-)
+);
 
-const PricingCard: React.FC<{ title: string; price: string; features: string[]; popular?: boolean }> = ({
-  title,
-  price,
-  features,
-  popular = false,
-}) => (
+const PricingCard: React.FC<{
+  title: string;
+  price: string;
+  features: string[];
+  popular?: boolean;
+}> = ({ title, price, features, popular = false }) => (
   <Card
-    className={`relative bg-slate-800/50 backdrop-blur border-slate-700 hover:bg-slate-800/70 transition-all duration-300 ${popular ? "border-blue-500 scale-105" : ""}`}
+    className={`relative bg-slate-800/50 backdrop-blur border-slate-700 hover:bg-slate-800/70 transition-all duration-300 ${
+      popular ? "border-blue-500 scale-105" : ""
+    }`}
   >
     {popular && (
       <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-        <Badge className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">Most Popular</Badge>
+        <Badge className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+          Most Popular
+        </Badge>
       </div>
     )}
     <CardContent className="p-8">
@@ -284,18 +324,24 @@ const PricingCard: React.FC<{ title: string; price: string; features: string[]; 
           </li>
         ))}
       </ul>
-      <Button
-        className={`w-full ${popular ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700" : "bg-slate-700 hover:bg-slate-600"} text-white`}
-      >
-        Get Started
-      </Button>
+      <a href="/auth/login">
+        <Button
+          className={`w-full ${
+            popular
+              ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              : "bg-slate-700 hover:bg-slate-600"
+          } text-white`}
+        >
+          Get Started
+        </Button>
+      </a>
     </CardContent>
   </Card>
-)
+);
 
 const ChatWidget: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false)
-  const [message, setMessage] = useState("")
+  const [isOpen, setIsOpen] = useState(false);
+  const [message, setMessage] = useState("");
 
   return (
     <div className="fixed bottom-6 right-6 z-50">
@@ -307,13 +353,19 @@ const ChatWidget: React.FC = () => {
                 <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse" />
                 <span className="text-white font-semibold">AI Assistant</span>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsOpen(false)}
+              >
                 <X className="w-4 h-4" />
               </Button>
             </div>
             <div className="flex-1 p-4 space-y-4">
               <div className="bg-blue-500/20 p-3 rounded-lg">
-                <p className="text-blue-300 text-sm">Hi! I'm your AI assistant. How can I help you today?</p>
+                <p className="text-blue-300 text-sm">
+                  Hi! I'm your AI assistant. How can I help you today?
+                </p>
               </div>
             </div>
             <div className="p-4 border-t border-slate-700">
@@ -339,22 +391,34 @@ const ChatWidget: React.FC = () => {
         <MessageSquare className="w-6 h-6" />
       </Button>
     </div>
-  )
-}
+  );
+};
 
 export default function VoiceAILanding() {
-  const [email, setEmail] = useState("")
-  const [isHovered, setIsHovered] = useState(false)
-  const [activeStep, setActiveStep] = useState(0)
-  const [activeTestimonial, setActiveTestimonial] = useState(0)
-  const [emailSubmitted, setEmailSubmitted] = useState(false)
+  const [email, setEmail] = useState("");
+  const [isHovered, setIsHovered] = useState(false);
+  const [activeStep, setActiveStep] = useState(0);
+  const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const [emailSubmitted, setEmailSubmitted] = useState(false);
 
   const callSteps = [
-    { title: "Customer Calls", description: "Incoming calls routed to your AI agent" },
-    { title: "Voice Recognition", description: "Real-time speech-to-text transcription" },
-    { title: "AI Processing", description: "GPT-4 processes with your business context" },
-    { title: "Intelligent Response", description: "Natural voice response to customer" },
-  ]
+    {
+      title: "Customer Calls",
+      description: "Incoming calls routed to your AI agent",
+    },
+    {
+      title: "Voice Recognition",
+      description: "Real-time speech-to-text transcription",
+    },
+    {
+      title: "AI Processing",
+      description: "GPT-4 processes with your business context",
+    },
+    {
+      title: "Intelligent Response",
+      description: "Natural voice response to customer",
+    },
+  ];
 
   const testimonials = [
     {
@@ -372,27 +436,27 @@ export default function VoiceAILanding() {
       company: "Fix-It Pro Services",
       text: "We never miss a service call anymore. The AI books appointments even when we're on job sites.",
     },
-  ]
+  ];
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setActiveStep((prev) => (prev + 1) % callSteps.length)
-    }, 2500)
-    return () => clearInterval(interval)
-  }, [])
+      setActiveStep((prev) => (prev + 1) % callSteps.length);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setActiveTestimonial((prev) => (prev + 1) % testimonials.length)
-    }, 4000)
-    return () => clearInterval(interval)
-  }, [])
+      setActiveTestimonial((prev) => (prev + 1) % testimonials.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleEmailSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setEmailSubmitted(true)
-    setTimeout(() => setEmailSubmitted(false), 3000)
-  }
+    e.preventDefault();
+    setEmailSubmitted(true);
+    setTimeout(() => setEmailSubmitted(false), 3000);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
@@ -424,9 +488,11 @@ export default function VoiceAILanding() {
             </a>
           ))}
         </nav>
-        <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-          Start Free Trial
-        </Button>
+        <a href="/auth/login">
+          <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+            Start Free Trial
+          </Button>
+        </a>
       </header>
 
       {/* Hero Section */}
@@ -444,8 +510,9 @@ export default function VoiceAILanding() {
         </h1>
 
         <p className="text-xl text-slate-300 mb-12 max-w-3xl mx-auto leading-relaxed">
-          Deploy intelligent voice AI agents that answer customer calls 24/7, handle FAQs, and provide seamless customer
-          service with human-like conversations.
+          Deploy intelligent voice AI agents that answer customer calls 24/7,
+          handle FAQs, and provide seamless customer service with human-like
+          conversations.
         </p>
 
         <form
@@ -475,7 +542,9 @@ export default function VoiceAILanding() {
                 <>
                   Get Your Agent
                   <ArrowRight
-                    className={`w-4 h-4 ml-2 transition-transform duration-300 ${isHovered ? "translate-x-1" : ""}`}
+                    className={`w-4 h-4 ml-2 transition-transform duration-300 ${
+                      isHovered ? "translate-x-1" : ""
+                    }`}
                   />
                 </>
               )}
@@ -521,9 +590,12 @@ export default function VoiceAILanding() {
       {/* Features Section */}
       <section className="relative z-10 px-6 py-20 max-w-7xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-5xl font-bold text-white mb-6">Everything You Need</h2>
+          <h2 className="text-5xl font-bold text-white mb-6">
+            Everything You Need
+          </h2>
           <p className="text-xl text-slate-300 max-w-3xl mx-auto">
-            Complete voice AI solution with dashboard, analytics, and seamless integrations
+            Complete voice AI solution with dashboard, analytics, and seamless
+            integrations
           </p>
         </div>
 
@@ -570,18 +642,26 @@ export default function VoiceAILanding() {
       {/* Testimonials Section */}
       <section className="relative z-10 px-6 py-20 max-w-4xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-white mb-6">What Our Customers Say</h2>
+          <h2 className="text-4xl font-bold text-white mb-6">
+            What Our Customers Say
+          </h2>
           <div className="flex justify-center space-x-2 mb-8">
             {[...Array(5)].map((_, i) => (
               <Star key={i} className="w-6 h-6 text-yellow-400 fill-current" />
             ))}
-            <span className="text-slate-300 ml-2">4.9/5 from 500+ businesses</span>
+            <span className="text-slate-300 ml-2">
+              4.9/5 from 500+ businesses
+            </span>
           </div>
         </div>
 
         <div className="relative h-64">
           {testimonials.map((testimonial, index) => (
-            <TestimonialCard key={index} {...testimonial} isActive={index === activeTestimonial} />
+            <TestimonialCard
+              key={index}
+              {...testimonial}
+              isActive={index === activeTestimonial}
+            />
           ))}
         </div>
       </section>
@@ -589,15 +669,24 @@ export default function VoiceAILanding() {
       {/* Pricing Section */}
       <section className="relative z-10 px-6 py-20 max-w-6xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-white mb-6">Simple, Transparent Pricing</h2>
-          <p className="text-xl text-slate-300">Choose the plan that fits your business needs</p>
+          <h2 className="text-4xl font-bold text-white mb-6">
+            Simple, Transparent Pricing
+          </h2>
+          <p className="text-xl text-slate-300">
+            Choose the plan that fits your business needs
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <PricingCard
             title="Starter"
             price="$29"
-            features={["1 AI Voice Agent", "100 calls/month", "Basic analytics", "Email support"]}
+            features={[
+              "1 AI Voice Agent",
+              "100 calls/month",
+              "Basic analytics",
+              "Email support",
+            ]}
           />
           <PricingCard
             title="Professional"
@@ -628,24 +717,29 @@ export default function VoiceAILanding() {
       {/* Use Cases Section */}
       <section className="relative z-10 px-6 py-20 max-w-6xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-white mb-6">Perfect For Any Business</h2>
+          <h2 className="text-4xl font-bold text-white mb-6">
+            Perfect For Any Business
+          </h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
             {
               title: "Restaurants",
-              description: "Handle reservations, takeout orders, and answer menu questions automatically",
+              description:
+                "Handle reservations, takeout orders, and answer menu questions automatically",
               icon: "🍽️",
             },
             {
               title: "Medical Practices",
-              description: "Schedule appointments, provide office hours, and answer common patient questions",
+              description:
+                "Schedule appointments, provide office hours, and answer common patient questions",
               icon: "🏥",
             },
             {
               title: "Service Businesses",
-              description: "Manage booking inquiries, provide quotes, and handle customer service calls",
+              description:
+                "Manage booking inquiries, provide quotes, and handle customer service calls",
               icon: "🔧",
             },
           ].map((useCase, index) => (
@@ -655,7 +749,9 @@ export default function VoiceAILanding() {
             >
               <CardContent className="p-8 text-center">
                 <div className="text-4xl mb-4">{useCase.icon}</div>
-                <h3 className="text-xl font-bold text-white mb-4">{useCase.title}</h3>
+                <h3 className="text-xl font-bold text-white mb-4">
+                  {useCase.title}
+                </h3>
                 <p className="text-slate-300">{useCase.description}</p>
               </CardContent>
             </Card>
@@ -667,9 +763,12 @@ export default function VoiceAILanding() {
       <section className="relative z-10 px-6 py-20 text-center">
         <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 backdrop-blur-xl rounded-3xl p-12 border border-blue-500/30 max-w-4xl mx-auto">
           <Phone className="w-16 h-16 text-blue-400 mx-auto mb-6 animate-bounce" />
-          <h2 className="text-4xl font-bold text-white mb-6">Ready to Transform Your Customer Service?</h2>
+          <h2 className="text-4xl font-bold text-white mb-6">
+            Ready to Transform Your Customer Service?
+          </h2>
           <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
-            Start your free trial today and see how AI voice agents can handle your customer calls instantly
+            Start your free trial today and see how AI voice agents can handle
+            your customer calls instantly
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 px-8 py-4 text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
@@ -701,7 +800,9 @@ export default function VoiceAILanding() {
             </div>
             <span className="text-xl font-bold text-white">VoiceAI</span>
           </div>
-          <div className="text-slate-400">© 2025 VoiceAI. Revolutionizing customer service.</div>
+          <div className="text-slate-400">
+            © 2025 VoiceAI. Revolutionizing customer service.
+          </div>
         </div>
       </footer>
 
@@ -710,14 +811,19 @@ export default function VoiceAILanding() {
 
       <style jsx>{`
         @keyframes pulse {
-          0%, 100% { opacity: 0.2; }
-          50% { opacity: 0.4; }
+          0%,
+          100% {
+            opacity: 0.2;
+          }
+          50% {
+            opacity: 0.4;
+          }
         }
-        
+
         html {
           scroll-behavior: smooth;
         }
       `}</style>
     </div>
-  )
+  );
 }
