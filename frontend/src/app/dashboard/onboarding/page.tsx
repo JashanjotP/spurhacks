@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle } from "lucide-react";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 interface OnboardingData {
   agentType: "faq" | "booking" | "order" | "";
@@ -25,21 +26,39 @@ interface OnboardingData {
 export default function Onboarding() {
   const router = useRouter();
   const [isCompleted, setIsCompleted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [completedData, setCompletedData] = useState<OnboardingData | null>(null);
 
   const handleOnboardingComplete = (data: OnboardingData) => {
     // Log the completed data for testing purposes
     console.log("Onboarding completed with data:", data);
     
-    // Store the data (in a real app, this would be saved to a database)
-    setCompletedData(data);
-    setIsCompleted(true);
+    // Show loading screen
+    setIsLoading(true);
     
-    // Simulate a delay before redirecting (optional)
+    // Simulate processing time
     setTimeout(() => {
-      router.push("/dashboard");
-    }, 3000);
+      // Store the data (in a real app, this would be saved to a database)
+      setCompletedData(data);
+      setIsLoading(false);
+      setIsCompleted(true);
+      
+      // Simulate a delay before redirecting (optional)
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 3000);
+    }, 2000);
   };
+
+  if (isLoading) {
+    return (
+      <LoadingScreen 
+        message="Setting up your AI voice agent..." 
+        showProgress={true}
+        progress={75}
+      />
+    );
+  }
 
   if (isCompleted && completedData) {
     return (
