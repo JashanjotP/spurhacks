@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+twilio
+python-multipart
+dotenv
+google-generativeai
+aiohttp
