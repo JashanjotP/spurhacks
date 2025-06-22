@@ -15,7 +15,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { Bot, Phone, Settings, BarChart3, LogOut, User, Grid3X3, Brain, Building, TestTube, Upload } from "lucide-react"
+import { Bot, Phone, Settings, BarChart3, LogOut, User, Grid3X3, Brain, Building, TestTube, Upload, PersonStandingIcon, Calendar } from "lucide-react"
 
 const navigation = [
   {
@@ -35,6 +35,12 @@ const navigation = [
     href: "/dashboard/agents",
     icon: Bot,
     // description: "Manage AI agents"
+  },
+  {
+    title: "Booking Agent",
+    href: "/dashboard/booking-agent",
+    icon: Calendar,
+    // description: "Manage appointments"
   },
   {
     title: "Businesses",
@@ -69,6 +75,10 @@ const developmentNavigation = [
     icon: Upload,
     // description: "Test file uploads"
   },
+  {
+    title: "Test Onboading",
+    href: "/dashboard/onboarding",
+    icon: PersonStandingIcon,}
 ]
 
 export function DashboardSidebar() {
