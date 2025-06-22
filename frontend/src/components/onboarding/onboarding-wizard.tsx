@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,28 +26,19 @@ import {
   Bot,
   Calendar,
   ShoppingCart,
-  Upload,
-  Link,
-  FileText,
   Phone,
-  Clock,
-  Mic,
   CheckCircle,
   ArrowRight,
   ArrowLeft,
   Sparkles,
-  Globe,
   Building,
-  BarChart3,
 } from "lucide-react";
+import { supabaseOnboardingService } from "@/lib/supabase/onboarding-service";
 
 interface OnboardingData {
   agentType: "faq" | "booking" | "order" | "";
   businessName: string;
   businessType: string;
-  knowledgeSource: "upload" | "url" | "";
-  uploadedFiles: File[];
-  websiteUrl: string;
   businessHours: {
     start: string;
     end: string;
@@ -115,13 +106,13 @@ interface OnboardingWizardProps {
 
 export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const [currentStep, setCurrentStep] = useState(0);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [data, setData] = useState<OnboardingData>({
     agentType: "",
     businessName: "",
     businessType: "",
-    knowledgeSource: "",
-    uploadedFiles: [],
-    websiteUrl: "",
     businessHours: {
       start: "09:00",
       end: "17:00",
@@ -131,15 +122,72 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     phoneNumber: "",
   });
 
-  const [crawlResult, setCrawlResult] = useState<string | null>(null);
-  const [isCrawling, setIsCrawling] = useState(false);
-  const [crawlError, setCrawlError] = useState<string | null>(null);
+  // Initialize session on component mount
+  useEffect(() => {
+    const initializeSession = async () => {
+      try {
+        // Try to get existing session first
+        let session = await supabaseOnboardingService.getCurrentSession();
+        
+        if (!session) {
+          // Create new session if none exists
+          const newSessionId = await supabaseOnboardingService.createOnboardingSession();
+          if (newSessionId) {
+            setSessionId(newSessionId);
+          } else {
+            console.error('Failed to create onboarding session');
+          }
+        } else {
+          setSessionId(session.id);
+          // Restore data from existing session
+          if (session.onboarding_data) {
+            setData(prevData => ({
+              ...prevData,
+              ...session.onboarding_data
+            }));
+            setCurrentStep(session.current_step || 0);
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing session:', error);
+        setSaveError('Failed to initialize onboarding session');
+      }
+    };
+
+    initializeSession();
+  }, []);
+
+  // Save data to Supabase after each step
+  const saveStepData = async (stepData: Partial<OnboardingData>, step: number) => {
+    if (!sessionId) return;
+
+    try {
+      setIsSaving(true);
+      setSaveError(null);
+      
+      const success = await supabaseOnboardingService.updateOnboardingStep(
+        sessionId,
+        step,
+        stepData
+      );
+      
+      if (!success) {
+        throw new Error('Failed to save step data');
+      }
+      
+      console.log(`Step ${step} data saved successfully`);
+    } catch (error) {
+      console.error('Error saving step data:', error);
+      setSaveError(error instanceof Error ? error.message : 'Failed to save data');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const steps = [
     "Welcome",
     "Agent Type",
     "Business Info",
-    "Knowledge Base",
     "Configuration",
     "Phone Number",
     "Complete",
@@ -207,8 +255,11 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
   const progress = ((currentStep + 1) / steps.length) * 100;
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < steps.length - 1) {
+      // Save current step data before proceeding
+      await saveStepData(data, currentStep);
+      
       setCurrentStep(currentStep + 1);
     }
   };
@@ -219,12 +270,20 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     }
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     // Generate a mock phone number
     const phoneNumber = `+1 (555) ${Math.floor(Math.random() * 900) + 100}-${
       Math.floor(Math.random() * 9000) + 1000
     }`;
-    onComplete({ ...data, phoneNumber });
+    
+    const finalData = { ...data, phoneNumber };
+    
+    // Save final data before completing
+    if (sessionId) {
+      await saveStepData(finalData, currentStep);
+    }
+    
+    onComplete(finalData);
   };
 
   const canProceed = () => {
@@ -234,40 +293,22 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
       case 2:
         return data.businessName && data.businessType;
       case 3:
-        return (
-          data.knowledgeSource &&
-          (data.knowledgeSource === "url"
-            ? data.websiteUrl
-            : data.uploadedFiles.length > 0)
-        );
-      case 4:
         return data.greeting;
       default:
         return true;
     }
   };
 
-  //   const handleCrawlWebsite = async () => {
-  //     setIsCrawling(true)
-  //     setCrawlError(null)
-  //     setCrawlResult(null)
-  //     try {
-  //       const response = await fetch("http://localhost:8000/crawl", {
-  //         method: "POST",
-  //         headers: { "Content-Type": "application/json" },
-  //         body: JSON.stringify({ url: data.websiteUrl }),
-  //       })
-  //       const result = await response.json()
-  //       if (result.status === "success") {
-  //         setCrawlResult(result.data)
-  //       } else {
-  //         setCrawlError("Failed to crawl website.")
-  //       }
-  //     } catch (err) {
-  //       setCrawlError("Error connecting to backend.")
-  //     }
-  //     setIsCrawling(false)
-  //   }
+  // Auto-save when data changes (debounced)
+  useEffect(() => {
+    if (!sessionId || currentStep === 0) return;
+
+    const timeoutId = setTimeout(() => {
+      saveStepData(data, currentStep);
+    }, 1000); // Save after 1 second of no changes
+
+    return () => clearTimeout(timeoutId);
+  }, [data, sessionId, currentStep]);
 
   const renderStep = () => {
     switch (currentStep) {
@@ -299,11 +340,11 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               </div>
               <div className="text-center">
                 <div className="w-12 h-12 bg-green-900/50 rounded-lg flex items-center justify-center mx-auto mb-3">
-                  <Upload className="w-6 h-6 text-green-400" />
+                  <Building className="w-6 h-6 text-green-400" />
                 </div>
-                <h3 className="font-semibold mb-2 text-white">Upload Knowledge</h3>
+                <h3 className="font-semibold mb-2 text-white">Business Info</h3>
                 <p className="text-sm text-slate-400">
-                  Train your agent with your business information
+                  Tell us about your business
                 </p>
               </div>
               <div className="text-center">
@@ -396,123 +437,94 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
           <div className="space-y-6 max-w-2xl mx-auto">
             <div className="text-center">
               <h2 className="text-2xl font-bold mb-2 text-white">
-                Upload Your Knowledge Base
+                Configure Your Agent
               </h2>
               <p className="text-slate-300">
-                Provide information for your agent to learn about your business,
-                products, and services
+                Set up how your agent will greet and interact with callers
               </p>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card
-                className={`cursor-pointer transition-all ${
-                  data.knowledgeSource === "upload"
-                    ? "border-blue-500 bg-blue-900/20 ring-2 ring-blue-500/20"
-                    : "border-slate-700 bg-slate-800 hover:border-blue-400"
-                }`}
-                onClick={() => setData({ ...data, knowledgeSource: "upload" })}
-              >
-                <CardContent className="p-6 text-center">
-                  <Upload className="w-12 h-12 text-blue-400 mx-auto mb-4" />
-                  <h3 className="font-semibold mb-2 text-white">Upload Files</h3>
-                  <p className="text-sm text-slate-300">
-                    Upload PDFs, documents, or CSV files
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card
-                className={`cursor-pointer transition-all ${
-                  data.knowledgeSource === "url"
-                    ? "border-blue-500 bg-blue-900/20 ring-2 ring-blue-500/20"
-                    : "border-slate-700 bg-slate-800 hover:border-blue-400"
-                }`}
-                onClick={() => setData({ ...data, knowledgeSource: "url" })}
-              >
-                <CardContent className="p-6 text-center">
-                  <Globe className="w-12 h-12 text-green-400 mx-auto mb-4" />
-                  <h3 className="font-semibold mb-2 text-white">Website URL</h3>
-                  <p className="text-sm text-slate-300">
-                    Let us crawl your website for information
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {data.knowledgeSource === "upload" && (
-              <div className="space-y-4">
-                <Label htmlFor="file-upload" className="text-white">Upload Files</Label>
-                <div className="border-2 border-dashed border-slate-600 rounded-lg p-8 text-center bg-slate-800/50">
-                  <FileText className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                  <p className="text-sm text-slate-300 mb-4">
-                    Drag and drop files here, or click to browse
-                  </p>
-                  <Input
-                    id="file-upload"
-                    type="file"
-                    multiple
-                    accept=".pdf,.doc,.docx,.txt,.csv"
-                    className="hidden"
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || []);
-                      setData({ ...data, uploadedFiles: files });
-                    }}
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      document.getElementById("file-upload")?.click()
-                    }
-                    className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                  >
-                    Choose Files
-                  </Button>
-                  {data.uploadedFiles.length > 0 && (
-                    <div className="mt-4">
-                      <p className="text-sm font-medium text-white">Selected files:</p>
-                      <ul className="text-sm text-slate-300">
-                        {data.uploadedFiles.map((file, index) => (
-                          <li key={index}>{file.name}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {data.knowledgeSource === "url" && (
+            <div className="space-y-6">
               <div>
-                <Label htmlFor="websiteUrl" className="text-white">Website URL</Label>
-                <Input
-                  id="websiteUrl"
-                  placeholder="https://your-website.com"
-                  value={data.websiteUrl}
+                <Label htmlFor="greeting" className="text-white">Agent Greeting</Label>
+                <Textarea
+                  id="greeting"
+                  placeholder="Hello! Welcome to [Business Name]. I'm your AI assistant. How can I help you today?"
+                  value={data.greeting}
                   onChange={(e) =>
-                    setData({ ...data, websiteUrl: e.target.value })
+                    setData({ ...data, greeting: e.target.value })
                   }
-                  className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-400"
+                  className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-400 min-h-[100px]"
                 />
-                <Button
-                  className="mt-2 bg-blue-600 hover:bg-blue-700"
-                  //   onClick={handleCrawlWebsite}
-                  disabled={!data.websiteUrl || isCrawling}
-                >
-                  {isCrawling ? "Crawling..." : "Crawl Website"}
-                </Button>
-                {crawlResult && (
-                  <div className="mt-2 text-green-400">{crawlResult}</div>
-                )}
-                {crawlError && (
-                  <div className="mt-2 text-red-400">{crawlError}</div>
-                )}
-                <p className="text-sm text-slate-400 mt-2">
-                  We'll crawl your website to extract relevant information for
-                  your agent
+                <p className="text-xs text-slate-400 mt-1">
+                  This is how your agent will greet callers
                 </p>
               </div>
-            )}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="startTime" className="text-white">Start Time</Label>
+                  <Input
+                    id="startTime"
+                    type="time"
+                    value={data.businessHours.start}
+                    onChange={(e) =>
+                      setData({
+                        ...data,
+                        businessHours: {
+                          ...data.businessHours,
+                          start: e.target.value,
+                        },
+                      })
+                    }
+                    className="bg-slate-800 border-slate-700 text-white"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="endTime" className="text-white">End Time</Label>
+                  <Input
+                    id="endTime"
+                    type="time"
+                    value={data.businessHours.end}
+                    onChange={(e) =>
+                      setData({
+                        ...data,
+                        businessHours: {
+                          ...data.businessHours,
+                          end: e.target.value,
+                        },
+                      })
+                    }
+                    className="bg-slate-800 border-slate-700 text-white"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="timezone" className="text-white">Timezone</Label>
+                  <Select
+                    value={data.businessHours.timezone}
+                    onValueChange={(value) =>
+                      setData({
+                        ...data,
+                        businessHours: {
+                          ...data.businessHours,
+                          timezone: value,
+                        },
+                      })
+                    }
+                  >
+                    <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-800 border-slate-700">
+                      {timezones.map((tz) => (
+                        <SelectItem key={tz} value={tz} className="text-white hover:bg-slate-700">
+                          {tz}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
           </div>
         );
 
@@ -520,100 +532,44 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         return (
           <div className="space-y-6 max-w-2xl mx-auto">
             <div className="text-center">
-              <h2 className="text-2xl font-bold mb-2 text-white">Configure Your Agent</h2>
+              <h2 className="text-2xl font-bold mb-2 text-white">
+                Phone Number Setup
+              </h2>
               <p className="text-slate-300">
-                Set up business hours and customize your agent's greeting
+                We'll provide you with a dedicated phone number for your AI agent
               </p>
             </div>
-
             <div className="space-y-6">
-              <div>
-                <Label className="text-base font-semibold text-white">
-                  Business Hours
-                </Label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-                  <div>
-                    <Label htmlFor="start-time" className="text-white">Start Time</Label>
-                    <Input
-                      id="start-time"
-                      type="time"
-                      value={data.businessHours.start}
-                      onChange={(e) =>
-                        setData({
-                          ...data,
-                          businessHours: {
-                            ...data.businessHours,
-                            start: e.target.value,
-                          },
-                        })
-                      }
-                      className="bg-slate-800 border-slate-700 text-white"
-                    />
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center">
+                    <Phone className="mr-2 h-5 w-5 text-blue-400" />
+                    Your Dedicated Number
+                  </CardTitle>
+                  <CardDescription className="text-slate-300">
+                    This number will be assigned to your AI agent
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-white mb-2">
+                      +1 (555) XXX-XXXX
+                    </div>
+                    <p className="text-slate-400">
+                      Number will be assigned upon completion
+                    </p>
                   </div>
-                  <div>
-                    <Label htmlFor="end-time" className="text-white">End Time</Label>
-                    <Input
-                      id="end-time"
-                      type="time"
-                      value={data.businessHours.end}
-                      onChange={(e) =>
-                        setData({
-                          ...data,
-                          businessHours: {
-                            ...data.businessHours,
-                            end: e.target.value,
-                          },
-                        })
-                      }
-                      className="bg-slate-800 border-slate-700 text-white"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="timezone" className="text-white">Timezone</Label>
-                    <Select
-                      value={data.businessHours.timezone}
-                      onValueChange={(value) =>
-                        setData({
-                          ...data,
-                          businessHours: {
-                            ...data.businessHours,
-                            timezone: value,
-                          },
-                        })
-                      }
-                    >
-                      <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-700">
-                        {timezones.map((tz) => (
-                          <SelectItem key={tz} value={tz} className="text-white hover:bg-slate-700">
-                            {tz.replace("_", " ")}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
 
-              <div>
-                <Label htmlFor="greeting" className="text-white">Agent Greeting</Label>
-                <Textarea
-                  id="greeting"
-                  placeholder={`Hello! Thank you for calling ${
-                    data.businessName || "our business"
-                  }. I'm your AI assistant and I'm here to help you. How can I assist you today?`}
-                  value={data.greeting}
-                  onChange={(e) =>
-                    setData({ ...data, greeting: e.target.value })
-                  }
-                  rows={4}
-                  className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-400"
-                />
-                <p className="text-sm text-slate-400 mt-2">
-                  This greeting will be played when customers call your agent
-                </p>
+              <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-300 mb-2">What happens next?</h4>
+                <ul className="text-sm text-blue-200 space-y-1">
+                  <li>• Your phone number will be activated within 24 hours</li>
+                  <li>• You'll receive setup instructions via email</li>
+                  <li>• Your agent will be ready to take calls</li>
+                  <li>• You can monitor calls from your dashboard</li>
+                </ul>
               </div>
             </div>
           </div>
@@ -621,126 +577,64 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
       case 5:
         return (
-          <div className="space-y-6 max-w-2xl mx-auto">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold mb-2 text-white">Get Your Phone Number</h2>
-              <p className="text-slate-300">
-                We're setting up a dedicated phone number for your AI agent
-              </p>
+          <div className="text-center space-y-6">
+            <div className="mx-auto w-20 h-20 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-10 h-10 text-white" />
             </div>
-
-            <Card className="p-6 bg-slate-800 border-slate-700">
-              <div className="text-center space-y-4">
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto">
-                  <Phone className="w-8 h-8 text-white animate-pulse" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-2 text-white">
-                    Provisioning Phone Number...
-                  </h3>
-                  <p className="text-slate-300">
-                    This usually takes just a few seconds
-                  </p>
-                </div>
-                <div className="w-full bg-slate-700 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full animate-pulse"
-                    style={{ width: "75%" }}
-                  ></div>
-                </div>
-              </div>
-            </Card>
-
-            <Alert className="border-slate-700 bg-slate-800">
-              <Phone className="h-4 w-4 text-blue-400" />
-              <AlertDescription className="text-slate-300">
-                Your phone number will be ready in the next step. You can start
-                receiving calls immediately after setup is complete.
-              </AlertDescription>
-            </Alert>
-          </div>
-        );
-
-      case 6:
-        return (
-          <div className="space-y-6 max-w-2xl mx-auto">
-            <div className="text-center">
-              <div className="w-20 h-20 bg-green-900/50 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle className="w-10 h-10 text-green-400" />
-              </div>
-              <h2 className="text-3xl font-bold mb-2 text-white">
-                🎉 Your Agent is Ready!
+            <div>
+              <h2 className="text-3xl font-bold mb-4 text-white">
+                Setup Complete!
               </h2>
-              <p className="text-slate-300">
-                Congratulations! Your AI voice agent has been successfully
-                configured and is ready to handle calls.
+              <p className="text-lg text-slate-300 max-w-2xl mx-auto">
+                Your AI voice agent is ready to be deployed. Here's what we've configured:
               </p>
             </div>
-
-            <Card className="p-6 bg-slate-800 border-slate-700">
-              <h3 className="text-lg font-semibold mb-4 text-white">Agent Summary</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-slate-300">Agent Type:</span>
-                  <span className="font-medium capitalize text-white">
-                    {data.agentType} Agent
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-300">Business:</span>
-                  <span className="font-medium text-white">{data.businessName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-300">Phone Number:</span>
-                  <span className="font-medium font-mono text-white">
-                    +1 (555) 123-4567
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-300">Business Hours:</span>
-                  <span className="font-medium text-white">
-                    {data.businessHours.start} - {data.businessHours.end}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-300">
-                    Knowledge Source:
-                  </span>
-                  <span className="font-medium capitalize text-white">
-                    {data.knowledgeSource === "upload"
-                      ? "Uploaded Files"
-                      : "Website URL"}
-                  </span>
-                </div>
-              </div>
-            </Card>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card className="p-4 bg-slate-800 border-slate-700">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-blue-900/50 rounded-lg flex items-center justify-center">
-                    <Mic className="w-5 h-5 text-blue-400" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle className="text-white">Agent Configuration</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-left">
+                  <div className="flex justify-between">
+                    <span className="text-slate-300">Type:</span>
+                    <span className="text-white font-semibold capitalize">
+                      {data.agentType} Agent
+                    </span>
                   </div>
-                  <div>
-                    <h4 className="font-semibold text-white">Test Your Agent</h4>
-                    <p className="text-sm text-slate-300">
-                      Call your number to test the setup
-                    </p>
+                  <div className="flex justify-between">
+                    <span className="text-slate-300">Business:</span>
+                    <span className="text-white font-semibold">{data.businessName}</span>
                   </div>
-                </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-300">Hours:</span>
+                    <span className="text-white font-semibold">
+                      {data.businessHours.start} - {data.businessHours.end}
+                    </span>
+                  </div>
+                </CardContent>
               </Card>
-              <Card className="p-4 bg-slate-800 border-slate-700">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-green-900/50 rounded-lg flex items-center justify-center">
-                    <BarChart3 className="w-5 h-5 text-green-400" />
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle className="text-white">Next Steps</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-left">
+                  <div className="flex items-center text-sm text-slate-300">
+                    <CheckCircle className="mr-2 h-4 w-4 text-green-400" />
+                    Phone number activation
                   </div>
-                  <div>
-                    <h4 className="font-semibold text-white">View Analytics</h4>
-                    <p className="text-sm text-slate-300">
-                      Monitor calls and performance
-                    </p>
+                  <div className="flex items-center text-sm text-slate-300">
+                    <CheckCircle className="mr-2 h-4 w-4 text-green-400" />
+                    Agent training completion
                   </div>
-                </div>
+                  <div className="flex items-center text-sm text-slate-300">
+                    <CheckCircle className="mr-2 h-4 w-4 text-green-400" />
+                    Dashboard access setup
+                  </div>
+                  <div className="flex items-center text-sm text-slate-300">
+                    <CheckCircle className="mr-2 h-4 w-4 text-green-400" />
+                    Email notifications
+                  </div>
+                </CardContent>
               </Card>
             </div>
           </div>
@@ -754,62 +648,80 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   return (
     <div className="min-h-screen bg-slate-950 p-6">
       <div className="max-w-4xl mx-auto">
-        {/* Progress Header */}
+        {/* Progress Bar */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold text-white">Setup Your AI Voice Agent</h1>
-            <Badge variant="outline" className="border-slate-700 text-slate-300">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm text-slate-300">
               Step {currentStep + 1} of {steps.length}
-            </Badge>
+            </span>
+            <span className="text-sm text-slate-300">{Math.round(progress)}%</span>
           </div>
-          <Progress value={progress} className="h-2 bg-slate-800" />
-          <div className="flex justify-between mt-2 text-sm text-slate-400">
+          <Progress value={progress} className="h-2" />
+          <div className="flex justify-between mt-2">
             {steps.map((step, index) => (
-              <span
-                key={step}
-                className={`${
-                  index <= currentStep ? "text-blue-400 font-medium" : ""
+              <div
+                key={index}
+                className={`text-xs ${
+                  index <= currentStep ? "text-blue-400" : "text-slate-500"
                 }`}
               >
                 {step}
-              </span>
+              </div>
             ))}
           </div>
         </div>
 
+        {/* Save Status */}
+        {isSaving && (
+          <Alert className="border-blue-700 bg-blue-900/20 mb-4">
+            <AlertDescription className="text-blue-200">
+              Saving your progress...
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {saveError && (
+          <Alert className="border-red-700 bg-red-900/20 mb-4">
+            <AlertDescription className="text-red-200">
+              Error saving data: {saveError}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Step Content */}
-        <Card className="mb-8 bg-slate-900 border-slate-800">
-          <CardContent className="p-8 text-white">{renderStep()}</CardContent>
+        <Card className="bg-slate-900 border-slate-800">
+          <CardContent className="p-8">{renderStep()}</CardContent>
         </Card>
 
         {/* Navigation */}
-        <div className="flex justify-between">
+        <div className="flex justify-between mt-6">
           <Button
-            variant="outline"
             onClick={handlePrevious}
             disabled={currentStep === 0}
-            className="flex items-center border-slate-700 text-slate-300 hover:bg-slate-800"
+            variant="outline"
+            className="border-slate-700 text-slate-300 hover:bg-slate-800"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ArrowLeft className="mr-2 h-4 w-4" />
             Previous
           </Button>
 
           {currentStep === steps.length - 1 ? (
             <Button
               onClick={handleComplete}
-              className="flex items-center bg-green-600 hover:bg-green-700"
+              disabled={!canProceed() || isSaving}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
             >
+              <CheckCircle className="mr-2 h-4 w-4" />
               Complete Setup
-              <CheckCircle className="w-4 h-4 ml-2" />
             </Button>
           ) : (
             <Button
               onClick={handleNext}
-              disabled={!canProceed()}
-              className="flex items-center bg-blue-600 hover:bg-blue-700"
+              disabled={!canProceed() || isSaving}
+              className="bg-blue-600 hover:bg-blue-700"
             >
               Next
-              <ArrowRight className="w-4 h-4 ml-2" />
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           )}
         </div>

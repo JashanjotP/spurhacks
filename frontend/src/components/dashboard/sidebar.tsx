@@ -15,7 +15,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { Bot, Phone, Settings, BarChart3, LogOut, User, Grid3X3, Brain } from "lucide-react"
+import { Bot, Phone, Settings, BarChart3, LogOut, User, Grid3X3, Brain, Building, TestTube } from "lucide-react"
 
 const navigation = [
   {
@@ -37,6 +37,12 @@ const navigation = [
     // description: "Manage AI agents"
   },
   {
+    title: "Businesses",
+    href: "/dashboard/businesses",
+    icon: Building,
+    // description: "Manage businesses"
+  },
+  {
     title: "Call Logs",
     href: "/dashboard/calls",
     icon: Phone,
@@ -47,6 +53,15 @@ const navigation = [
     href: "/dashboard/settings",
     icon: Settings,
     // description: "Configuration"
+  },
+]
+
+const developmentNavigation = [
+  {
+    title: "Test Supabase",
+    href: "/dashboard/test-supabase",
+    icon: TestTube,
+    // description: "Test database integration"
   },
 ]
 
@@ -99,6 +114,46 @@ export function DashboardSidebar() {
                         <div>
                           <p className="font-semibold text-sm">{item.title}</p>
                           {/* <p className={`text-xs transition-colors duration-200 ${isActive ? "text-purple-200" : "text-slate-400"}`}>{item.description}</p> */}
+                        </div>
+                        {isActive && (
+                          <div className="ml-auto w-2 h-2 bg-white rounded-full" />
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Development Tools */}
+        <SidebarGroup className="mt-6">
+          <SidebarGroupLabel className="text-slate-400 text-xs font-semibold uppercase tracking-wider px-2 mb-2">
+            Development
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {developmentNavigation.map((item) => {
+                const isActive = pathname === item.href
+                return (
+                  <SidebarMenuItem key={item.href} className="mb-1">
+                    <SidebarMenuButton 
+                      asChild 
+                      isActive={isActive}
+                      className={`group w-full rounded-lg transition-colors duration-200 ${
+                        isActive
+                          ? "bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg"
+                          : "text-slate-300 hover:bg-slate-800"
+                      }`}
+                    >
+                      <Link href={item.href} className="flex items-center gap-4 p-3">
+                        <div className={`p-2 rounded-lg ${isActive ? "" : "bg-slate-800 group-hover:bg-slate-700"}`}>
+                          <item.icon className={`h-5 w-5 transition-colors duration-200 ${isActive ? "text-white" : "text-slate-400 group-hover:text-white"}`} />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm">{item.title}</p>
+                          {/* <p className={`text-xs transition-colors duration-200 ${isActive ? "text-orange-200" : "text-slate-400"}`}>{item.description}</p> */}
                         </div>
                         {isActive && (
                           <div className="ml-auto w-2 h-2 bg-white rounded-full" />
