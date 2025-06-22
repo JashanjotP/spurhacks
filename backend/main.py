@@ -445,12 +445,11 @@ class ConversationManager:
         elif current_step == "verification":
             return base_instructions + f"""
             Current step: VERIFICATION
-            - You're collecting verification information (date of birth and address)
-            - If you just got date of birth, now ask for their address
-            - If you have both, confirm you received the information and that you're verifying
-            - Be professional but friendly during this security step
+            - You need to collect their date of birth and address for verification
+            - Ask clearly and professionally
+            - Explain it's for security purposes
             """
-        
+
         elif current_step == "verify_processing":
             return base_instructions + f"""
             Current step: VERIFICATION PROCESSING
@@ -482,8 +481,9 @@ class ConversationManager:
             Current step: CONFIRMATION
             - Summarize their appointment details: date, time, and reason for visit
             - Ask if everything looks correct
+            - If they confirm or say thank you/goodbye, the appointment is complete
             - If they want changes, help them make adjustments
-            - If confirmed, let them know the appointment is booked
+            - Be ready to finalize the booking when they confirm
             """
 
         return base_instructions + f"""Keep responses short and conversational. Be helpful and professional."""
@@ -494,7 +494,7 @@ class ConversationManager:
             "that's not right", "that's wrong", "no that's not my name", 
             "you got it wrong", "that's not correct", "no that's not right",
             "wrong name", "not my name", "incorrect", "that's not me",
-            "no", "nope", "not right", "wrong"
+            "no", "nope", "not right", "wrong", "spell it", "let me spell"
         ]
         user_input_lower = user_input.lower().strip()
         return any(phrase in user_input_lower for phrase in correction_phrases)
@@ -504,7 +504,8 @@ class ConversationManager:
         confirmation_phrases = [
             "yes", "yeah", "yep", "correct", "right", "that's right",
             "that's correct", "exactly", "perfect", "sounds good",
-            "looks good", "that works", "confirmed"
+            "looks good", "that works", "confirmed", "yup", "uh huh",
+            "mhmm", "sure", "absolutely"
         ]
         user_input_lower = user_input.lower().strip()
         return any(phrase in user_input_lower for phrase in confirmation_phrases)
@@ -558,6 +559,89 @@ class ConversationManager:
             print(f"Error generating response: {e}")
             return "I'm having trouble understanding right now. Could you please repeat that?"
 
+    async def generate_appointment_json(self, session_data: dict, conversation_history: list) -> dict:
+        """Use Gemini to intelligently extract and format appointment data"""
+        try:
+            # Get current date context
+            current_date = datetime.now().strftime('%Y-%m-%d')
+            
+            # Ensure we have the proper name data
+            first_name = session_data.get('first_name', '').strip()
+            last_name = session_data.get('last_name', '').strip()
+            
+            # Clean up names if they contain unwanted text
+            if first_name and not first_name.replace(' ', '').isalpha():
+                # Try to extract actual name from conversation
+                for entry in conversation_history:
+                    if 'my name is' in entry['user'].lower() or 'i\'m' in entry['user'].lower():
+                        words = entry['user'].split()
+                        for i, word in enumerate(words):
+                            if word.lower() in ['name', 'i\'m', 'is'] and i + 1 < len(words):
+                                potential_name = words[i + 1].strip('.,!?')
+                                if potential_name.isalpha():
+                                    first_name = potential_name.title()
+                                    break
+            
+            prompt = f"""
+            Based on the following conversation, extract the appointment information and create a JSON object with this exact structure:
+            {{
+                "name": "First Last",
+                "AppointmentDateTime": "YYYY-MM-DD HH:MM",
+                "Reason": "brief description of medical reason"
+            }}
+
+            Current date: {current_date}
+            
+            Session data:
+            First Name: {first_name}
+            Last Name: {last_name}
+            Date/Time Input: {session_data.get('appointment_datetime', '')}
+            Reason Input: {session_data.get('appointment_reason', '')}
+
+            Recent conversation:
+            {json.dumps(conversation_history[-10:], indent=2)}
+
+            Instructions:
+            - Use ONLY the actual patient names from the session data
+            - Parse date/time correctly (if "next Wednesday" was mentioned, calculate the actual date from {current_date})
+            - Summarize the medical reason briefly
+            - If only time was given, assume next available business day
+            - DO NOT include any system messages or phone numbers in the name field
+            
+            Return ONLY the JSON object, no other text.
+            """
+            
+            response = await asyncio.to_thread(self.model.generate_content, prompt)
+            json_text = response.text.strip()
+            
+            # Clean up the response to extract JSON
+            if '```json' in json_text:
+                json_text = json_text.split('```json')[1].split('```')[0].strip()
+            elif '```' in json_text:
+                json_text = json_text.split('```')[1].strip()
+            
+            # Try to parse the JSON
+            try:
+                parsed_json = json.loads(json_text)
+                # Ensure the name is properly formatted
+                if first_name and last_name:
+                    parsed_json["name"] = f"{first_name} {last_name}"
+                return parsed_json
+            except:
+                # Fallback to manual extraction
+                return {
+                    "name": f"{first_name} {last_name}".strip() if first_name or last_name else "Unknown Patient",
+                    "AppointmentDateTime": self.parse_datetime_input(session_data.get('appointment_datetime', '')),
+                    "Reason": self.extract_reason(session_data.get('appointment_reason', ''))
+                }
+        except Exception as e:
+            print(f"Error generating appointment JSON: {e}")
+            return {
+                "name": f"{first_name} {last_name}".strip() if first_name or last_name else "Unknown Patient",
+                "AppointmentDateTime": self.parse_datetime_input(session_data.get('appointment_datetime', '')),
+                "Reason": self.extract_reason(session_data.get('appointment_reason', ''))
+            }
+
     def get_next_friday(self) -> datetime:
         """Get the date for the next Friday"""
         today = datetime.now()
@@ -590,6 +674,25 @@ class ConversationManager:
         """Parse datetime from user input with current date context"""
         datetime_input = datetime_input.lower().strip()
         
+        # Handle "next wednesday", "this wednesday", etc.
+        if 'wednesday' in datetime_input:
+            target_date = self.get_next_weekday_by_name('wednesday')
+            # Extract time if provided
+            time_match = re.search(r'(\d{1,2}):?(\d{0,2})\s*(am|pm)', datetime_input)
+            if time_match:
+                hour = int(time_match.group(1))
+                minute = int(time_match.group(2)) if time_match.group(2) else 0
+                period = time_match.group(3)
+                
+                if period == 'pm' and hour != 12:
+                    hour += 12
+                elif period == 'am' and hour == 12:
+                    hour = 0
+                    
+                return f"{target_date.strftime('%Y-%m-%d')} {hour:02d}:{minute:02d}"
+            else:
+                return target_date.strftime('%Y-%m-%d')
+        
         # Handle "this friday", "next friday", etc.
         if 'friday' in datetime_input:
             target_date = self.get_next_friday()
@@ -610,7 +713,7 @@ class ConversationManager:
                 return target_date.strftime('%Y-%m-%d')
         
         # Handle other weekdays
-        weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'saturday', 'sunday']
+        weekdays = ['monday', 'tuesday', 'thursday', 'saturday', 'sunday']
         for day in weekdays:
             if day in datetime_input:
                 target_date = self.get_next_weekday_by_name(day)
@@ -654,74 +757,12 @@ class ConversationManager:
         
         return datetime_input
 
-    async def generate_appointment_json(self, session_data: dict, conversation_history: list) -> dict:
-        """Use Gemini to intelligently extract and format appointment data"""
-        try:
-            # Get current date context
-            current_date = datetime.now().strftime('%Y-%m-%d')
-            
-            prompt = f"""
-            Based on the following conversation, extract the appointment information and create a JSON object with this exact structure:
-            {{
-                "name": "First Last",
-                "AppointmentDateTime": "YYYY-MM-DD HH:MM",
-                "Reason": "brief description of medical reason"
-            }}
-
-            Current date: {current_date}
-            
-            Session data:
-            First Name: {session_data.get('first_name', '')}
-            Last Name: {session_data.get('last_name', '')}
-            Date/Time Input: {session_data.get('appointment_datetime', '')}
-            Reason Input: {session_data.get('appointment_reason', '')}
-
-            Recent conversation:
-            {json.dumps(conversation_history[-5:], indent=2)}
-
-            Instructions:
-            - Combine first and last name properly
-            - Parse date/time correctly (if "this Friday" was mentioned, calculate the actual Friday date from {current_date})
-            - Summarize the medical reason briefly
-            - If only time was given, assume next available business day
-            
-            Return ONLY the JSON object, no other text.
-            """
-            
-            response = await asyncio.to_thread(self.model.generate_content, prompt)
-            json_text = response.text.strip()
-            
-            # Clean up the response to extract JSON
-            if '```json' in json_text:
-                json_text = json_text.split('```json')[1].split('```')[0].strip()
-            elif '```' in json_text:
-                json_text = json_text.split('```')[1].strip()
-            
-            # Try to parse the JSON
-            try:
-                return json.loads(json_text)
-            except:
-                # Fallback to manual extraction
-                return {
-                    "name": f"{session_data.get('first_name', '')} {session_data.get('last_name', '')}".strip(),
-                    "AppointmentDateTime": self.parse_datetime_input(session_data.get('appointment_datetime', '')),
-                    "Reason": self.extract_reason(session_data.get('appointment_reason', ''))
-                }
-        except Exception as e:
-            print(f"Error generating appointment JSON: {e}")
-            return {
-                "name": f"{session_data.get('first_name', '')} {session_data.get('last_name', '')}".strip(),
-                "AppointmentDateTime": self.parse_datetime_input(session_data.get('appointment_datetime', '')),
-                "Reason": self.extract_reason(session_data.get('appointment_reason', ''))
-            }
-
     def extract_reason(self, reason_input: str) -> str:
         """Extract and clean up the reason for appointment"""
         # Remove unnecessary words and clean up
         reason = re.sub(r'(yeah|i|like|having|some|so|i\'m|that\'s|why|kind|of|looking|business|appointment)', '', reason_input.lower())
         reason = re.sub(r'\s+', ' ', reason).strip()
         return reason.title() if reason else "General Consultation"
-
 conversation_manager = ConversationManager()
 
 async def generate_speech(text: str, call_sid: str) -> str:
@@ -765,13 +806,11 @@ async def serve_audio(filename: str):
             return Response(content=f.read(), media_type="audio/mpeg")
     return Response(status_code=404)
 
-
 def determine_next_step(current_step: str, user_input: str, session_data: dict) -> str:
     """Determine the next step in the appointment booking flow"""
     
     if current_step == "greeting":
         # Extract first name from user input and store it
-        # Look for name patterns in the input
         words = user_input.strip().split()
         potential_name = None
         
@@ -798,17 +837,18 @@ def determine_next_step(current_step: str, user_input: str, session_data: dict) 
         return "confirm_first_name"
     
     elif current_step == "confirm_first_name":
-        if "yes" in user_input.lower() or "correct" in user_input.lower() or "right" in user_input.lower():
+        if conversation_manager.detect_confirmation_intent(user_input):
             return "get_last_name"
-        elif "no" in user_input.lower() or "wrong" in user_input.lower() or "incorrect" in user_input.lower():
+        elif conversation_manager.detect_name_correction_intent(user_input):
             return "spell_first_name"
         else:
             return "confirm_first_name"  # Ask again
     
     elif current_step == "spell_first_name":
-        # Process spelled name (remove spaces between letters)
-        spelled_name = re.sub(r'\s+', '', user_input).title()
-        session_data["first_name"] = spelled_name
+        # Process spelled name
+        spelled_name = conversation_manager.extract_spelled_name(user_input)
+        if spelled_name:
+            session_data["first_name"] = spelled_name
         return "get_last_name"
     
     elif current_step == "get_last_name":
@@ -821,23 +861,32 @@ def determine_next_step(current_step: str, user_input: str, session_data: dict) 
         return "confirm_last_name"
     
     elif current_step == "confirm_last_name":
-        if "yes" in user_input.lower() or "correct" in user_input.lower() or "right" in user_input.lower():
+        if conversation_manager.detect_confirmation_intent(user_input):
             return "verification"
-        elif "no" in user_input.lower() or "wrong" in user_input.lower() or "incorrect" in user_input.lower():
+        elif conversation_manager.detect_name_correction_intent(user_input):
             return "spell_last_name"
         else:
             return "confirm_last_name"  # Ask again
     
     elif current_step == "spell_last_name":
-        # Process spelled name (remove spaces between letters)
-        spelled_name = re.sub(r'\s+', '', user_input).title()
-        session_data["last_name"] = spelled_name
+        # Process spelled name
+        spelled_name = conversation_manager.extract_spelled_name(user_input)
+        if spelled_name:
+            session_data["last_name"] = spelled_name
         return "verification"
     
     elif current_step == "verification":
         if "date_of_birth" not in session_data:
+            # Extract date of birth from input
             session_data["date_of_birth"] = user_input
-            return "verification"  # Stay in verification to get address
+            # Check if address is also in the same input
+            if "address" in user_input.lower() or "avenue" in user_input.lower() or "street" in user_input.lower():
+                # Try to extract address from the same input
+                parts = user_input.split("address")
+                if len(parts) > 1:
+                    session_data["address"] = parts[1].strip()
+                    return "verify_processing"
+            return "verification"  # Still need address
         elif "address" not in session_data:
             session_data["address"] = user_input
             return "verify_processing"
@@ -856,46 +905,76 @@ def determine_next_step(current_step: str, user_input: str, session_data: dict) 
         return "confirmation"
     
     elif current_step == "confirmation":
-        # Use the ConversationManager's detection methods for better accuracy
+        # Improved confirmation logic
         user_input_lower = user_input.lower().strip()
         
-        # Check for positive confirmations - be more inclusive
-        confirmation_words = [
-            "yes", "yeah", "yep", "yup", "correct", "right", "that's right",
-            "that's correct", "exactly", "perfect", "sounds good", "looks good", 
-            "that works", "confirmed", "confirm", "okay", "ok", "good", 
-            "fine", "great", "awesome", "sure", "absolutely", "definitely"
+        # Strong exit/goodbye indicators should end the call
+        goodbye_indicators = [
+            "goodbye", "bye", "thank you bye", "thanks bye", "see you", "have a good day"
         ]
         
-        # Check for negative responses
-        negative_words = [
-            "no", "nope", "wrong", "incorrect", "not right", "that's wrong",
-            "that's not right", "change", "different", "modify", "edit"
-        ]
-        
-        # Check if any confirmation word is in the input
-        has_confirmation = any(word in user_input_lower for word in confirmation_words)
-        has_negative = any(word in user_input_lower for word in negative_words)
-        
-        if has_confirmation and not has_negative:
+        # Check for goodbye intent first
+        if any(phrase in user_input_lower for phrase in goodbye_indicators):
             return "completed"
-        elif has_negative:
-            # They want to make changes, go back to get_datetime
+        
+        # Change/modification indicators
+        change_indicators = [
+            "no that's wrong", "that's not right", "that's incorrect", "change", 
+            "different", "modify", "edit", "let's do", "how about", "instead", 
+            "rather", "actually", "can we change", "i want to change"
+        ]
+        
+        # Strong confirmation indicators
+        confirmation_indicators = [
+            "yes", "yeah", "yep", "yup", "that's right", "that's correct", 
+            "correct", "right", "exactly", "perfect", "sounds good", 
+            "looks good", "that works", "confirmed", "confirm", "okay", 
+            "ok", "good", "fine", "great", "awesome", "sure", "absolutely", 
+            "definitely", "all looks correct", "looks correct", "that's it",
+            "sounds right", "that's good", "all good", "everything's correct"
+        ]
+        
+        # Neutral/acknowledgment phrases that should be treated as confirmation in context
+        neutral_acknowledgments = [
+            "thank you", "thanks", "alright", "i'm good", "that's all", 
+            "nothing else", "we're good", "all set"
+        ]
+        
+        # Check for explicit changes first
+        if any(phrase in user_input_lower for phrase in change_indicators):
             return "get_datetime"
+        
+        # Check for strong confirmations
+        elif any(phrase in user_input_lower for phrase in confirmation_indicators):
+            return "completed"
+        
+        # Check for neutral acknowledgments (treat as confirmation)
+        elif any(phrase in user_input_lower for phrase in neutral_acknowledgments):
+            return "completed"
+        
+        # If it's a very short response that could be confirmation
+        elif len(user_input.strip()) <= 10 and any(word in user_input_lower for word in ["yes", "ok", "good", "right"]):
+            return "completed"
+        
         else:
-            # Unclear response, ask for confirmation again
+            # Unclear response, ask for confirmation again but be more direct
             return "confirmation"
     
     return current_step
+
 
 def check_exit_intent(user_input: str, current_step: str) -> bool:
     """Check for exit intent, but be more careful during confirmation step"""
     user_input_lower = user_input.lower().strip()
     
-    # During confirmation, be more restrictive about exit keywords
+    # During confirmation, only exit on very explicit exit phrases
     if current_step == "confirmation":
         # Only trigger exit if they explicitly use these strong exit phrases
-        strong_exit_keywords = ["goodbye", "hang up", "cancel", "never mind", "not today", "i need to go", "call back later"]
+        strong_exit_keywords = [
+            "cancel the appointment", "cancel this", "never mind", "not today", 
+            "i need to go", "call back later", "hang up", "i have to go",
+            "cancel everything"
+        ]
         return any(keyword in user_input_lower for keyword in strong_exit_keywords)
     else:
         # For other steps, use the broader set of exit keywords
