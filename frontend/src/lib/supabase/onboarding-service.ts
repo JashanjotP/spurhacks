@@ -5,6 +5,8 @@ export interface OnboardingData {
   agentType: "faq" | "booking" | "order" | "";
   businessName: string;
   businessType: string;
+  uploadedFiles: File[];
+  uploadedFileResults: any[];
   businessHours: {
     start: string;
     end: string;
@@ -141,10 +143,66 @@ class SupabaseOnboardingService {
   }
 
   /**
+   * Create a temporary business ID for the session (for file uploads)
+   */
+  async createTemporaryBusinessId(sessionId: string, businessName: string, businessType: string): Promise<string | null> {
+    try {
+      console.log(`🔧 Creating temporary business ID for session: ${sessionId}`);
+      console.log(`📝 Business name: ${businessName}, type: ${businessType}`);
+      
+      const user = await this.getCurrentUser();
+      console.log(`👤 User ID: ${user.id}`);
+      
+      // Generate a temporary business ID
+      const tempBusinessId = `temp-${this.generateBusinessId()}`;
+      console.log(`🆔 Generated temp business ID: ${tempBusinessId}`);
+      
+      // Update the session with the temporary business ID
+      console.log(`💾 Updating session with temp business ID...`);
+      const { data, error } = await this.supabase
+        .from('onboarding_sessions')
+        .update({
+          business_id: tempBusinessId,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', sessionId)
+        .select('business_id');
+
+      if (error) {
+        console.error('❌ Database error updating session:', error);
+        console.error('❌ Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        throw error;
+      }
+
+      console.log(`✅ Session updated successfully:`, data);
+      console.log(`✅ Created temporary business ID: ${tempBusinessId} for session: ${sessionId}`);
+      return tempBusinessId;
+    } catch (error) {
+      console.error('❌ Error creating temporary business ID:', error);
+      console.error('❌ Error type:', typeof error);
+      console.error('❌ Error stringified:', JSON.stringify(error, null, 2));
+      return null;
+    }
+  }
+
+  /**
    * Update onboarding step and data
    */
   async updateOnboardingStep(sessionId: string, step: number, data: Partial<OnboardingData>): Promise<boolean> {
     try {
+      // If this is step 2 (business info) and we don't have a business_id yet, create one
+      if (step === 2 && data.businessName && data.businessType) {
+        const session = await this.getCurrentSession();
+        if (session && !session.business_id) {
+          await this.createTemporaryBusinessId(sessionId, data.businessName, data.businessType);
+        }
+      }
+
       const { error } = await this.supabase
         .from('onboarding_sessions')
         .update({
@@ -169,11 +227,17 @@ class SupabaseOnboardingService {
     try {
       const user = await this.getCurrentUser();
 
+      // Get the current session to check for temporary business ID
+      const session = await this.getCurrentSession();
+      const tempBusinessId = session?.business_id;
+
       // Generate phone number if not provided
       const phoneNumber = finalData.phoneNumber || this.generatePhoneNumber();
 
-      // Generate business ID
+      // Generate final business ID
       const businessId = this.generateBusinessId();
+
+      console.log(`🔄 Completing onboarding - Temp Business ID: ${tempBusinessId}, Final Business ID: ${businessId}`);
 
       // Start transaction by creating business first
       const { data: business, error: businessError } = await this.supabase
@@ -187,12 +251,39 @@ class SupabaseOnboardingService {
           business_hours: finalData.businessHours,
           greeting: finalData.greeting,
           phone_number: phoneNumber,
-          website_url: null // No website URL for now since we skipped knowledge base
+          website_url: null
         })
         .select('*')
         .single();
 
       if (businessError) throw businessError;
+
+      // If there was a temporary business ID, migrate documents to the final business ID
+      if (tempBusinessId && tempBusinessId.startsWith('temp-')) {
+        console.log(`📁 Migrating documents from temp business ID to final business ID`);
+        
+        // Update documents
+        const { error: docError } = await this.supabase
+          .from('documents')
+          .update({ business_id: businessId })
+          .eq('business_id', tempBusinessId);
+
+        if (docError) {
+          console.error('Error migrating documents:', docError);
+        }
+
+        // Update document chunks
+        const { error: chunkError } = await this.supabase
+          .from('document_chunks')
+          .update({ business_id: businessId })
+          .eq('business_id', tempBusinessId);
+
+        if (chunkError) {
+          console.error('Error migrating document chunks:', chunkError);
+        }
+
+        console.log(`✅ Documents migrated successfully`);
+      }
 
       // Update onboarding session as completed
       const { error: sessionError } = await this.supabase
@@ -208,6 +299,7 @@ class SupabaseOnboardingService {
 
       if (sessionError) throw sessionError;
 
+      console.log(`🎉 Onboarding completed successfully for business: ${business.id}`);
       return business;
     } catch (error) {
       console.error('Error completing onboarding:', error);

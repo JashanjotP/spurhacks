@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,19 +26,24 @@ import {
   Bot,
   Calendar,
   ShoppingCart,
+  Upload,
+  FileText,
   Phone,
   CheckCircle,
   ArrowRight,
   ArrowLeft,
   Sparkles,
-  Building,
+  X,
 } from "lucide-react";
 import { supabaseOnboardingService } from "@/lib/supabase/onboarding-service";
+import { fileUploadService } from "@/lib/supabase/file-upload-service";
 
 interface OnboardingData {
   agentType: "faq" | "booking" | "order" | "";
   businessName: string;
   businessType: string;
+  uploadedFiles: File[];
+  uploadedFileResults: any[]; // Store upload results separately
   businessHours: {
     start: string;
     end: string;
@@ -113,6 +118,8 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     agentType: "",
     businessName: "",
     businessType: "",
+    uploadedFiles: [],
+    uploadedFileResults: [],
     businessHours: {
       start: "09:00",
       end: "17:00",
@@ -121,6 +128,9 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     greeting: "",
     phoneNumber: "",
   });
+
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Initialize session on component mount
   useEffect(() => {
@@ -188,6 +198,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     "Welcome",
     "Agent Type",
     "Business Info",
+    "Upload Files",
     "Configuration",
     "Phone Number",
     "Complete",
@@ -282,6 +293,57 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     if (sessionId) {
       await saveStepData(finalData, currentStep);
     }
+    console.log('entering the submission');
+    // Upload files if any were selected
+    if (data.uploadedFiles.length > 0 && sessionId) {
+      try {
+        console.log('Starting immediate file upload...');
+        
+        // Get the business ID from the session
+        const session = await supabaseOnboardingService.getCurrentSession();
+        if (session && session.business_id) {
+          console.log('Uploading files to Supabase with business ID:', session.business_id);
+          const uploadedFiles = await fileUploadService.uploadFiles(data.uploadedFiles, session.business_id);
+          console.log('Files uploaded successfully:', uploadedFiles);
+          
+          // Store upload results separately
+          setData(prev => ({
+            ...prev,
+            uploadedFileResults: [...prev.uploadedFileResults, ...uploadedFiles]
+          }));
+        } else {
+          console.warn('No business ID found in session, creating temporary one...');
+          
+          // Create a temporary business ID if we have business info
+          if (data.businessName && data.businessType) {
+            const tempBusinessId = await supabaseOnboardingService.createTemporaryBusinessId(
+              sessionId, 
+              data.businessName, 
+              data.businessType
+            );
+            
+            if (tempBusinessId) {
+              console.log('Created temporary business ID:', tempBusinessId);
+              const uploadedFiles = await fileUploadService.uploadFiles(data.uploadedFiles, tempBusinessId);
+              console.log('Files uploaded successfully:', uploadedFiles);
+              
+              // Store upload results separately
+              setData(prev => ({
+                ...prev,
+                uploadedFileResults: [...prev.uploadedFileResults, ...uploadedFiles]
+              }));
+            } else {
+              console.error('Failed to create temporary business ID');
+            }
+          } else {
+            console.warn('No business info available, files will be uploaded later');
+          }
+        }
+      } catch (error) {
+        console.error('Error uploading files:', error);
+        // Don't fail the onboarding if upload fails
+      }
+    }
     
     onComplete(finalData);
   };
@@ -293,6 +355,8 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
       case 2:
         return data.businessName && data.businessType;
       case 3:
+        return data.uploadedFiles.length > 0;
+      case 4:
         return data.greeting;
       default:
         return true;
@@ -309,6 +373,97 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
     return () => clearTimeout(timeoutId);
   }, [data, sessionId, currentStep]);
+
+  // File upload handlers
+  const handleFileSelect = async (files: FileList | null) => {
+    if (!files) return;
+    
+    const newFiles = Array.from(files);
+    const validFiles = newFiles.filter(file => {
+      const validTypes = ['.pdf', '.doc', '.docx', '.txt'];
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      return validTypes.includes(fileExtension) && file.size <= 10 * 1024 * 1024; // 10MB limit
+    });
+    
+    setData(prev => ({
+      ...prev,
+      uploadedFiles: [...prev.uploadedFiles, ...validFiles]
+    }));
+
+    // Upload files immediately if we have a session
+    if (sessionId && validFiles.length > 0) {
+      try {
+        console.log('Starting immediate file upload...');
+        
+        // Get the business ID from the session
+        const session = await supabaseOnboardingService.getCurrentSession();
+        if (session && session.business_id) {
+          console.log('Uploading files to Supabase with business ID:', session.business_id);
+          const uploadedFiles = await fileUploadService.uploadFiles(validFiles, session.business_id);
+          console.log('Files uploaded successfully:', uploadedFiles);
+          
+          // Store upload results separately
+          setData(prev => ({
+            ...prev,
+            uploadedFileResults: [...prev.uploadedFileResults, ...uploadedFiles]
+          }));
+        } else {
+          console.warn('No business ID found in session, creating temporary one...');
+          
+          // Create a temporary business ID if we have business info
+          if (data.businessName && data.businessType) {
+            const tempBusinessId = await supabaseOnboardingService.createTemporaryBusinessId(
+              sessionId, 
+              data.businessName, 
+              data.businessType
+            );
+            
+            if (tempBusinessId) {
+              console.log('Created temporary business ID:', tempBusinessId);
+              const uploadedFiles = await fileUploadService.uploadFiles(validFiles, tempBusinessId);
+              console.log('Files uploaded successfully:', uploadedFiles);
+              
+              // Store upload results separately
+              setData(prev => ({
+                ...prev,
+                uploadedFileResults: [...prev.uploadedFileResults, ...uploadedFiles]
+              }));
+            } else {
+              console.error('Failed to create temporary business ID');
+            }
+          } else {
+            console.warn('No business info available, files will be uploaded later');
+          }
+        }
+      } catch (error) {
+        console.error('Error uploading files:', error);
+        // Don't fail the onboarding if upload fails
+      }
+    }
+  };
+
+  const handleFileDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    await handleFileSelect(e.dataTransfer.files);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const removeFile = (index: number) => {
+    setData(prev => ({
+      ...prev,
+      uploadedFiles: prev.uploadedFiles.filter((_, i) => i !== index)
+    }));
+  };
 
   const renderStep = () => {
     switch (currentStep) {
@@ -340,11 +495,11 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               </div>
               <div className="text-center">
                 <div className="w-12 h-12 bg-green-900/50 rounded-lg flex items-center justify-center mx-auto mb-3">
-                  <Building className="w-6 h-6 text-green-400" />
+                  <Upload className="w-6 h-6 text-green-400" />
                 </div>
-                <h3 className="font-semibold mb-2 text-white">Business Info</h3>
+                <h3 className="font-semibold mb-2 text-white">Upload Files</h3>
                 <p className="text-sm text-slate-400">
-                  Tell us about your business
+                  Train your agent with your business information
                 </p>
               </div>
               <div className="text-center">
@@ -433,6 +588,106 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         );
 
       case 3:
+        return (
+          <div className="space-y-6 max-w-2xl mx-auto">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold mb-2 text-white">
+                Upload Your Knowledge Base
+              </h2>
+              <p className="text-slate-300">
+                Upload files containing your business information to train your AI agent
+              </p>
+            </div>
+            <div className="space-y-6">
+              <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  isDragOver
+                    ? "border-blue-500 bg-blue-900/20"
+                    : "border-slate-600 hover:border-slate-500"
+                }`}
+                onDrop={handleFileDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="mx-auto h-12 w-12 text-slate-400 mb-4" />
+                <p className="text-lg text-slate-300 mb-2">
+                  Drag and drop files here, or click to select
+                </p>
+                <p className="text-sm text-slate-400">
+                  Supports PDF, DOC, DOCX, TXT (max 10MB each)
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.txt"
+                  className="hidden"
+                  onChange={(e) => handleFileSelect(e.target.files)}
+                />
+              </div>
+
+              {data.uploadedFiles.length > 0 && (
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-white">Selected Files:</h4>
+                  <div className="space-y-2">
+                    {data.uploadedFiles.map((file, index) => {
+                      const uploadResult = data.uploadedFileResults.find(r => r.filename === file.name);
+                      return (
+                        <div key={index} className="flex items-center justify-between p-4 bg-slate-800 rounded-lg border border-slate-700">
+                          <div className="flex items-center space-x-3">
+                            <FileText className="h-5 w-5 text-blue-400" />
+                            <div>
+                              <p className="text-slate-300 font-medium">{file.name}</p>
+                              <p className="text-xs text-slate-400">
+                                {(file.size / 1024 / 1024).toFixed(2)} MB
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {uploadResult ? (
+                              <div className="flex items-center space-x-1 text-green-400">
+                                <CheckCircle className="h-4 w-4" />
+                                <span className="text-xs">Uploaded</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center space-x-1 text-yellow-400">
+                                <div className="h-4 w-4 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                                <span className="text-xs">Uploading...</span>
+                              </div>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeFile(index)}
+                              className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {data.uploadedFileResults.length > 0 && (
+                <div className="bg-green-900/20 border border-green-700 rounded-lg p-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <CheckCircle className="h-5 w-5 text-green-400" />
+                    <h4 className="font-semibold text-green-300">Upload Status</h4>
+                  </div>
+                  <p className="text-sm text-green-200">
+                    {data.uploadedFileResults.length} file(s) uploaded successfully and are being processed for vector embeddings.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case 4:
         return (
           <div className="space-y-6 max-w-2xl mx-auto">
             <div className="text-center">
@@ -528,7 +783,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
           </div>
         );
 
-      case 4:
+      case 5:
         return (
           <div className="space-y-6 max-w-2xl mx-auto">
             <div className="text-center">
@@ -575,7 +830,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
           </div>
         );
 
-      case 5:
+      case 6:
         return (
           <div className="text-center space-y-6">
             <div className="mx-auto w-20 h-20 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center">
@@ -611,6 +866,20 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                       {data.businessHours.start} - {data.businessHours.end}
                     </span>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-300">Files Uploaded:</span>
+                    <span className="text-white font-semibold">
+                      {data.uploadedFiles.length} file(s)
+                    </span>
+                  </div>
+                  {data.uploadedFileResults.length > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-300">Files Processed:</span>
+                      <span className="text-white font-semibold">
+                        {data.uploadedFileResults.length} file(s) with vectors
+                      </span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
               <Card className="bg-slate-800 border-slate-700">

@@ -15,7 +15,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { Bot, Phone, Settings, BarChart3, LogOut, User, Grid3X3, Brain, Building, TestTube } from "lucide-react"
+import { Bot, Phone, Settings, BarChart3, LogOut, User, Grid3X3, Brain, Building, TestTube, Upload } from "lucide-react"
 
 const navigation = [
   {
@@ -62,6 +62,12 @@ const developmentNavigation = [
     href: "/dashboard/test-supabase",
     icon: TestTube,
     // description: "Test database integration"
+  },
+  {
+    title: "Test Upload",
+    href: "/dashboard/test-upload",
+    icon: Upload,
+    // description: "Test file uploads"
   },
 ]
 

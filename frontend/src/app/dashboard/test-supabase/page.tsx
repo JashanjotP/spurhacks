@@ -14,7 +14,7 @@ export default function TestSupabasePage() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [testResults, setTestResults] = useState<any>({});
+  const [testResults, setTestResults] = useState<string[]>([]);
 
   const supabase = createClient();
 
@@ -63,7 +63,7 @@ export default function TestSupabasePage() {
       // Test 4: Export data
       results.exportData = await supabaseOnboardingService.exportUserData();
       
-      setTestResults(results);
+      setTestResults(Object.values(results));
     } catch (error) {
       console.error('Test error:', error);
       setError(error instanceof Error ? error.message : 'Test failed');
@@ -73,11 +73,83 @@ export default function TestSupabasePage() {
   const clearTestData = async () => {
     try {
       // This would need to be implemented in the service
-      setTestResults({});
+      setTestResults([]);
       setBusinesses([]);
       setSessions([]);
     } catch (error) {
       console.error('Error clearing test data:', error);
+    }
+  };
+
+  const testTemporaryBusinessId = async () => {
+    try {
+      setTestResults((prev: string[]) => [...prev, "Testing temporary business ID creation..."]);
+      
+      // Create a test session first
+      const sessionId = await supabaseOnboardingService.createOnboardingSession();
+      if (!sessionId) {
+        setTestResults((prev: string[]) => [...prev, "❌ Failed to create test session"]);
+        return;
+      }
+      
+      setTestResults((prev: string[]) => [...prev, `✅ Created test session: ${sessionId}`]);
+      
+      // Test temporary business ID creation
+      const tempBusinessId = await supabaseOnboardingService.createTemporaryBusinessId(
+        sessionId,
+        "Test Business",
+        "Restaurant"
+      );
+      
+      if (tempBusinessId) {
+        setTestResults((prev: string[]) => [...prev, `✅ Created temporary business ID: ${tempBusinessId}`]);
+      } else {
+        setTestResults((prev: string[]) => [...prev, "❌ Failed to create temporary business ID"]);
+      }
+      
+      // Check the session was updated
+      const session = await supabaseOnboardingService.getCurrentSession();
+      if (session && session.business_id) {
+        setTestResults((prev: string[]) => [...prev, `✅ Session updated with business ID: ${session.business_id}`]);
+      } else {
+        setTestResults((prev: string[]) => [...prev, "❌ Session not updated with business ID"]);
+      }
+      
+    } catch (error) {
+      setTestResults((prev: string[]) => [...prev, `❌ Error: ${error}`]);
+    }
+  };
+
+  const testOnboardingSessionsTable = async () => {
+    try {
+      setTestResults((prev: string[]) => [...prev, "Testing onboarding_sessions table structure..."]);
+      
+      const { data, error } = await supabase
+        .from('onboarding_sessions')
+        .select('*')
+        .limit(1);
+      
+      if (error) {
+        setTestResults((prev: string[]) => [...prev, `❌ Error querying table: ${error.message}`]);
+        return;
+      }
+      
+      if (data && data.length > 0) {
+        const columns = Object.keys(data[0]);
+        setTestResults((prev: string[]) => [...prev, `✅ Table structure: ${columns.join(', ')}`]);
+        
+        // Check if business_id column exists
+        if (columns.includes('business_id')) {
+          setTestResults((prev: string[]) => [...prev, "✅ business_id column exists"]);
+        } else {
+          setTestResults((prev: string[]) => [...prev, "❌ business_id column missing"]);
+        }
+      } else {
+        setTestResults((prev: string[]) => [...prev, "ℹ️ No data in table, but table exists"]);
+      }
+      
+    } catch (error) {
+      setTestResults((prev: string[]) => [...prev, `❌ Error: ${error}`]);
     }
   };
 
@@ -100,7 +172,7 @@ export default function TestSupabasePage() {
         <div>
           <h1 className="text-3xl font-bold text-white">Supabase Integration Test</h1>
           <p className="text-slate-300 mt-2">
-            Test the Supabase integration and database connectivity
+            Test various Supabase functionality and database operations
           </p>
         </div>
 
@@ -159,15 +231,21 @@ export default function TestSupabasePage() {
         </Card>
 
         {/* Test Results */}
-        {Object.keys(testResults).length > 0 && (
+        {testResults.length > 0 && (
           <Card className="bg-slate-900 border-slate-800">
             <CardHeader>
               <CardTitle className="text-white">Test Results</CardTitle>
             </CardHeader>
             <CardContent>
-              <pre className="bg-slate-800 p-4 rounded text-sm text-slate-300 overflow-auto">
-                {JSON.stringify(testResults, null, 2)}
-              </pre>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {testResults.map((result, index) => (
+                  <div key={index} className="text-sm font-mono">
+                    <span className={result.startsWith('✅') ? 'text-green-400' : result.startsWith('❌') ? 'text-red-400' : result.startsWith('ℹ️') ? 'text-blue-400' : 'text-slate-300'}>
+                      {result}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
@@ -269,6 +347,15 @@ export default function TestSupabasePage() {
             </div>
           </CardContent>
         </Card>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Button onClick={testTemporaryBusinessId} className="bg-red-600 hover:bg-red-700">
+            Test Temp Business ID
+          </Button>
+          <Button onClick={testOnboardingSessionsTable} className="bg-yellow-600 hover:bg-yellow-700">
+            Test Table Structure
+          </Button>
+        </div>
       </div>
     </div>
   );

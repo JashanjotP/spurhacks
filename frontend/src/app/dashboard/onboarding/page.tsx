@@ -119,6 +119,14 @@ export default function Onboarding() {
               <br />
               • Business Hours: {completedData.businessHours.start} - {completedData.businessHours.end}
               <br />
+              • Files Uploaded: {completedData.uploadedFiles.length} file(s)
+              {completedData.uploadedFileResults.length > 0 && (
+                <>
+                  <br />
+                  • Files Processed: {completedData.uploadedFileResults.length} file(s) with vector embeddings
+                </>
+              )}
+              <br />
               <br />
               <strong>Database Info:</strong>
               <br />
@@ -153,6 +161,14 @@ export default function Onboarding() {
               • Phone Number: {completedData.phoneNumber}
               <br />
               • Business Hours: {completedData.businessHours.start} - {completedData.businessHours.end}
+              <br />
+              • Files Uploaded: {completedData.uploadedFiles.length} file(s)
+              {completedData.uploadedFileResults.length > 0 && (
+                <>
+                  <br />
+                  • Files Processed: {completedData.uploadedFileResults.length} file(s) with vector embeddings
+                </>
+              )}
               <br />
               <br />
               <em>Note: Data was saved locally but business record creation failed.</em>
