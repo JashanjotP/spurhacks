@@ -1,141 +1,138 @@
 import { createClient } from './client';
 
-export interface Booking {
-  id: string;
-  business_id: string;
-  customer_name: string;
-  customer_phone: string;
-  appointment_date: string;
-  appointment_time: string;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
-  notes?: string;
+export interface Appointment {
+  id: number;
   created_at: string;
-  updated_at: string;
+  name: string;
+  AppointmentDateTime: string;
+  Reason?: string;
 }
 
-export interface CreateBookingData {
-  business_id: string;
-  customer_name: string;
-  customer_phone: string;
-  appointment_date: string;
-  appointment_time: string;
-  notes?: string;
+export interface CreateAppointmentData {
+  name: string;
+  AppointmentDateTime: string;
+  Reason?: string;
 }
 
-export interface UpdateBookingData {
-  customer_name?: string;
-  customer_phone?: string;
-  appointment_date?: string;
-  appointment_time?: string;
-  status?: Booking['status'];
-  notes?: string;
+export interface UpdateAppointmentData {
+  name?: string;
+  AppointmentDateTime?: string;
+  Reason?: string;
 }
 
-export class BookingService {
+export class AppointmentService {
   private supabase = createClient();
 
-  async getBookings(businessId: string): Promise<Booking[]> {
+  async getAppointments(): Promise<Appointment[]> {
     const { data, error } = await this.supabase
-      .from('bookings')
+      .from('appointments_table')
       .select('*')
-      .eq('business_id', businessId)
-      .order('appointment_date', { ascending: true })
-      .order('appointment_time', { ascending: true });
+      .order('AppointmentDateTime', { ascending: true });
 
     if (error) {
-      console.error('Error fetching bookings:', error);
+      console.error('Error fetching appointments:', error);
       throw error;
     }
 
     return data || [];
   }
 
-  async getBookingsForDate(businessId: string, date: string): Promise<Booking[]> {
+  async getAppointmentsForDate(date: string): Promise<Appointment[]> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
     const { data, error } = await this.supabase
-      .from('bookings')
+      .from('appointments_table')
       .select('*')
-      .eq('business_id', businessId)
-      .eq('appointment_date', date)
-      .order('appointment_time', { ascending: true });
+      .gte('AppointmentDateTime', startOfDay.toISOString())
+      .lte('AppointmentDateTime', endOfDay.toISOString())
+      .order('AppointmentDateTime', { ascending: true });
 
     if (error) {
-      console.error('Error fetching bookings for date:', error);
+      console.error('Error fetching appointments for date:', error);
       throw error;
     }
 
     return data || [];
   }
 
-  async createBooking(bookingData: CreateBookingData): Promise<Booking> {
+  async createAppointment(appointmentData: CreateAppointmentData): Promise<Appointment> {
     const { data, error } = await this.supabase
-      .from('bookings')
-      .insert([bookingData])
+      .from('appointments_table')
+      .insert([appointmentData])
       .select()
       .single();
 
     if (error) {
-      console.error('Error creating booking:', error);
+      console.error('Error creating appointment:', error);
       throw error;
     }
 
     return data;
   }
 
-  async updateBooking(id: string, bookingData: UpdateBookingData): Promise<Booking> {
+  async updateAppointment(id: number, appointmentData: UpdateAppointmentData): Promise<Appointment> {
     const { data, error } = await this.supabase
-      .from('bookings')
-      .update(bookingData)
+      .from('appointments_table')
+      .update(appointmentData)
       .eq('id', id)
       .select()
       .single();
 
     if (error) {
-      console.error('Error updating booking:', error);
+      console.error('Error updating appointment:', error);
       throw error;
     }
 
     return data;
   }
 
-  async deleteBooking(id: string): Promise<void> {
+  async deleteAppointment(id: number): Promise<void> {
     const { error } = await this.supabase
-      .from('bookings')
+      .from('appointments_table')
       .delete()
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting booking:', error);
+      console.error('Error deleting appointment:', error);
       throw error;
     }
   }
 
-  async getBookingStats(businessId: string): Promise<{
+  async getAppointmentStats(): Promise<{
     total: number;
-    pending: number;
-    confirmed: number;
-    cancelled: number;
-    completed: number;
+    today: number;
+    upcoming: number;
+    past: number;
   }> {
     const { data, error } = await this.supabase
-      .from('bookings')
-      .select('status')
-      .eq('business_id', businessId);
+      .from('appointments_table')
+      .select('AppointmentDateTime');
 
     if (error) {
-      console.error('Error fetching booking stats:', error);
+      console.error('Error fetching appointment stats:', error);
       throw error;
     }
 
+    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const stats = {
       total: data?.length || 0,
-      pending: data?.filter(b => b.status === 'pending').length || 0,
-      confirmed: data?.filter(b => b.status === 'confirmed').length || 0,
-      cancelled: data?.filter(b => b.status === 'cancelled').length || 0,
-      completed: data?.filter(b => b.status === 'completed').length || 0,
+      today: data?.filter(a => {
+        const appointmentDate = new Date(a.AppointmentDateTime);
+        return appointmentDate >= today && appointmentDate < new Date(today.getTime() + 24 * 60 * 60 * 1000);
+      }).length || 0,
+      upcoming: data?.filter(a => new Date(a.AppointmentDateTime) > now).length || 0,
+      past: data?.filter(a => new Date(a.AppointmentDateTime) < now).length || 0,
     };
 
     return stats;
   }
 }
 
-export const bookingService = new BookingService(); 
+export const appointmentService = new AppointmentService();
