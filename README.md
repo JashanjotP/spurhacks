@@ -48,8 +48,8 @@ Building this has been a learning experience. We ran into a tricky bug with our 
 **Setting Things Up:**
 1.  **Get the code:**
     ```bash
-    git clone https://github.com/your-org/voiceagent.ai.git
-    cd voiceagent.ai
+    git clone https://github.com/your-org/frontdeskai.git
+    cd frontdeskai
     ```
 
 2.  **Set up the backend (the brain):**
