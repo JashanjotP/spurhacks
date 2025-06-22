@@ -5,3 +5,5 @@ python-multipart
 dotenv
 google-generativeai
 aiohttp
+assemblyai
+supabase
