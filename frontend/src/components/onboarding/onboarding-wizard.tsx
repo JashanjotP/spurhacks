@@ -128,11 +128,38 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
       timezone: "America/New_York",
     },
     greeting: "",
-    phoneNumber: "",
+    phoneNumber: "226 797 5864", // Hardcoded phone number
   });
 
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Helper function to get steps based on agent type
+  const getSteps = () => {
+    const baseSteps = ["Welcome", "Agent Type", "Business Info"];
+    
+    if (data.agentType === "booking") {
+      return [...baseSteps, "Configuration", "Phone Number", "Complete"];
+    } else {
+      return [...baseSteps, "Upload Files", "Configuration", "Phone Number", "Complete"];
+    }
+  };
+
+  // Helper function to get actual step index based on agent type
+  const getActualStepIndex = (wizardStep: number) => {
+    if (data.agentType === "booking" && wizardStep >= 3) {
+      return wizardStep + 1; // Skip the upload files step
+    }
+    return wizardStep;
+  };
+
+  // Helper function to get wizard step from actual step
+  const getWizardStep = (actualStep: number) => {
+    if (data.agentType === "booking" && actualStep >= 4) {
+      return actualStep - 1; // Account for skipped upload files step
+    }
+    return actualStep;
+  };
 
   // Initialize session on component mount
   useEffect(() => {
@@ -160,9 +187,10 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
           if (session.onboarding_data) {
             setData(prevData => ({
               ...prevData,
-              ...session.onboarding_data
+              ...session.onboarding_data,
+              phoneNumber: "226 797 5864" // Always use hardcoded phone number
             }));
-            setCurrentStep(session.current_step || 0);
+            setCurrentStep(getWizardStep(session.current_step || 0));
           }
         }
       } catch (error) {
@@ -182,9 +210,10 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
       setIsSaving(true);
       setSaveError(null);
       
+      const actualStep = getActualStepIndex(step);
       const success = await supabaseOnboardingService.updateOnboardingStep(
         sessionId,
-        step,
+        actualStep,
         stepData
       );
       
@@ -192,7 +221,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         throw new Error('Failed to save step data');
       }
       
-      console.log(`Step ${step} data saved successfully`);
+      console.log(`Step ${actualStep} data saved successfully`);
     } catch (error) {
       console.error('Error saving step data:', error);
       setSaveError(error instanceof Error ? error.message : 'Failed to save data');
@@ -201,15 +230,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     }
   };
 
-  const steps = [
-    "Welcome",
-    "Agent Type",
-    "Business Info",
-    "Upload Files",
-    "Configuration",
-    "Phone Number",
-    "Complete",
-  ];
+  const steps = getSteps();
 
   const agentTypes = [
     {
@@ -296,20 +317,21 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
       setSaveError(null);
 
       // Complete onboarding with final data
-      const business = await supabaseOnboardingService.completeOnboarding(sessionId, data);
+      const finalData = { ...data, phoneNumber: "226 797 5864" };
+      const business = await supabaseOnboardingService.completeOnboarding(sessionId, finalData);
 
       if (!business) {
         throw new Error('Failed to complete onboarding');
       }
 
-      const finalData = {
-        ...data,
+      const completeData = {
+        ...finalData,
         businessId: business.id
       };
 
-      console.log('Onboarding completed successfully:', finalData);
+      console.log('Onboarding completed successfully:', completeData);
       
-      onComplete(finalData);
+      onComplete(completeData);
     } catch (error) {
       console.error('Error completing onboarding:', error);
       setSaveError(error instanceof Error ? error.message : 'Failed to complete onboarding');
@@ -325,9 +347,19 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
       case 2:
         return data.businessName && data.businessType;
       case 3:
-        return data.uploadedFiles.length > 0;
+        // For booking agents, this is configuration step, for others it's upload files
+        if (data.agentType === "booking") {
+          return data.greeting;
+        } else {
+          return data.uploadedFiles.length > 0;
+        }
       case 4:
-        return data.greeting;
+        // For booking agents this is phone number, for others it's configuration  
+        if (data.agentType === "booking") {
+          return true; // Phone number is hardcoded
+        } else {
+          return data.greeting;
+        }
       default:
         return true;
     }
@@ -566,6 +598,104 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         );
 
       case 3:
+        // For booking agents, this is configuration step
+        if (data.agentType === "booking") {
+          return (
+            <div className="space-y-6 max-w-2xl mx-auto">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold mb-2 text-white">
+                  Configure Your Agent
+                </h2>
+                <p className="text-slate-300">
+                  Set up how your agent will greet and interact with callers
+                </p>
+              </div>
+              <div className="space-y-6">
+                <div>
+                  <Label htmlFor="greeting" className="text-white">Agent Greeting</Label>
+                  <Textarea
+                    id="greeting"
+                    placeholder="Hello! Welcome to [Business Name]. I'm your AI assistant. How can I help you today?"
+                    value={data.greeting}
+                    onChange={(e) =>
+                      setData({ ...data, greeting: e.target.value })
+                    }
+                    className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-400 min-h-[100px]"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    This is how your agent will greet callers
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="startTime" className="text-white">Start Time</Label>
+                    <Input
+                      id="startTime"
+                      type="time"
+                      value={data.businessHours.start}
+                      onChange={(e) =>
+                        setData({
+                          ...data,
+                          businessHours: {
+                            ...data.businessHours,
+                            start: e.target.value,
+                          },
+                        })
+                      }
+                      className="bg-slate-800 border-slate-700 text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="endTime" className="text-white">End Time</Label>
+                    <Input
+                      id="endTime"
+                      type="time"
+                      value={data.businessHours.end}
+                      onChange={(e) =>
+                        setData({
+                          ...data,
+                          businessHours: {
+                            ...data.businessHours,
+                            end: e.target.value,
+                          },
+                        })
+                      }
+                      className="bg-slate-800 border-slate-700 text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="timezone" className="text-white">Timezone</Label>
+                    <Select
+                      value={data.businessHours.timezone}
+                      onValueChange={(value) =>
+                        setData({
+                          ...data,
+                          businessHours: {
+                            ...data.businessHours,
+                            timezone: value,
+                          },
+                        })
+                      }
+                    >
+                      <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-slate-700">
+                        {timezones.map((tz) => (
+                          <SelectItem key={tz} value={tz} className="text-white hover:bg-slate-700">
+                            {tz}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        // For other agents, this is upload files step
         return (
           <div className="space-y-6 max-w-2xl mx-auto">
             <div className="text-center">
@@ -666,6 +796,55 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         );
 
       case 4:
+        // For booking agents, this is phone number step
+        if (data.agentType === "booking") {
+          return (
+            <div className="space-y-6 max-w-2xl mx-auto">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold mb-2 text-white">
+                  Phone Number Setup
+                </h2>
+                <p className="text-slate-300">
+                  Your dedicated phone number for the AI booking agent
+                </p>
+              </div>
+              <div className="space-y-6">
+                <Card className="bg-slate-800 border-slate-700">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center">
+                      <Phone className="mr-2 h-5 w-5 text-blue-400" />
+                      Your Dedicated Number
+                    </CardTitle>
+                    <CardDescription className="text-slate-300">
+                      This number is assigned to your AI booking agent
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-white mb-2">
+                        226 797 5864
+                      </div>
+                      <p className="text-slate-400">
+                        Ready to take booking calls
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-300 mb-2">What happens next?</h4>
+                  <ul className="text-sm text-blue-200 space-y-1">
+                    <li>• Your booking agent will be activated immediately</li>
+                    <li>• Customers can call to schedule appointments</li>
+                    <li>• You can monitor bookings from your dashboard</li>
+                    <li>• Calendar integration will be set up</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        // For other agents, this is configuration step
         return (
           <div className="space-y-6 max-w-2xl mx-auto">
             <div className="text-center">
@@ -762,6 +941,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         );
 
       case 5:
+        // Phone Number step for non-booking agents
         return (
           <div className="space-y-6 max-w-2xl mx-auto">
             <div className="text-center">
@@ -769,7 +949,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                 Phone Number Setup
               </h2>
               <p className="text-slate-300">
-                We'll provide you with a dedicated phone number for your AI agent
+                Your dedicated phone number for the AI agent
               </p>
             </div>
             <div className="space-y-6">
@@ -780,16 +960,16 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                     Your Dedicated Number
                   </CardTitle>
                   <CardDescription className="text-slate-300">
-                    This number will be assigned to your AI agent
+                    This number is assigned to your AI agent
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="text-center">
                     <div className="text-3xl font-bold text-white mb-2">
-                      +1 (555) XXX-XXXX
+                      226 797 5864
                     </div>
                     <p className="text-slate-400">
-                      Number will be assigned upon completion
+                      Ready to handle customer calls
                     </p>
                   </div>
                 </CardContent>
@@ -798,37 +978,75 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
                 <h4 className="font-semibold text-blue-300 mb-2">What happens next?</h4>
                 <ul className="text-sm text-blue-200 space-y-1">
-                  <li>• Your phone number will be activated within 24 hours</li>
-                  <li>• You'll receive setup instructions via email</li>
-                  <li>• Your agent will be ready to take calls</li>
+                  <li>• Your AI agent will be activated immediately</li>
+                  <li>• Customers can call for instant support</li>
                   <li>• You can monitor calls from your dashboard</li>
+                  <li>• Agent will use your uploaded knowledge base</li>
                 </ul>
               </div>
             </div>
           </div>
         );
 
-      case 6:
+      case steps.length - 1:
+        // Complete step
         return (
-          <div className="text-center space-y-4">
-            <div className="flex justify-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-8 h-8 text-green-600" />
-              </div>
+          <div className="text-center space-y-6">
+            <div className="mx-auto w-20 h-20 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-10 h-10 text-white" />
             </div>
-            <h3 className="text-xl font-semibold text-white">Onboarding Complete!</h3>
-            <p className="text-slate-300">
-              Your AI voice agent is ready to be configured. Here's what was set up:
-            </p>
-            <div className="bg-slate-800 rounded-lg p-4 text-left space-y-2">
-              <p className="text-slate-300">• <strong>Business:</strong> {data.businessName}</p>
-              <p className="text-slate-300">• <strong>Type:</strong> {data.businessType}</p>
-              <p className="text-slate-300">• <strong>Phone:</strong> {data.phoneNumber}</p>
-              {data.uploadedFileResults && data.uploadedFileResults.length > 0 && (
-                <p className="text-slate-300">
-                  • <strong>Files:</strong> {data.uploadedFileResults.length} file(s) uploaded successfully
-                </p>
-              )}
+            <div>
+              <h2 className="text-3xl font-bold mb-4 text-white">
+                🎉 Setup Complete!
+              </h2>
+              <p className="text-lg text-slate-300 max-w-2xl mx-auto">
+                Your AI {data.agentType} agent is ready to go! Your customers can now call{" "}
+                <span className="font-bold text-blue-400">226 797 5864</span> to get instant support.
+              </p>
+            </div>
+
+            <Card className="bg-slate-800 border-slate-700 max-w-2xl mx-auto">
+              <CardHeader>
+                <CardTitle className="text-white">Agent Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-slate-400">Business:</span>
+                    <span className="text-white ml-2">{data.businessName}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Type:</span>
+                    <span className="text-white ml-2 capitalize">{data.agentType}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Phone:</span>
+                    <span className="text-white ml-2">{data.phoneNumber}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Hours:</span>
+                    <span className="text-white ml-2">
+                      {data.businessHours.start} - {data.businessHours.end}
+                    </span>
+                  </div>
+                  {data.agentType !== "booking" && (
+                    <div className="col-span-2">
+                      <span className="text-slate-400">Files Uploaded:</span>
+                      <span className="text-white ml-2">{data.uploadedFiles.length}</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="bg-green-900/20 border border-green-700 rounded-lg p-6 max-w-2xl mx-auto">
+              <h4 className="font-semibold text-green-300 mb-3">Next Steps:</h4>
+              <ul className="text-sm text-green-200 space-y-2">
+                <li>• Test your agent by calling the number above</li>
+                <li>• Monitor performance from your dashboard</li>
+                <li>• Update your knowledge base anytime</li>
+                <li>• Share the number with your customers</li>
+              </ul>
             </div>
           </div>
         );
@@ -839,84 +1057,79 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm text-slate-300">
-              Step {currentStep + 1} of {steps.length}
-            </span>
-            <span className="text-sm text-slate-300">{Math.round(progress)}%</span>
-          </div>
-          <Progress value={progress} className="h-2" />
-          <div className="flex justify-between mt-2">
-            {steps.map((step, index) => (
-              <div
-                key={index}
-                className={`text-xs ${
-                  index <= currentStep ? "text-blue-400" : "text-slate-500"
-                }`}
-              >
-                {step}
-              </div>
-            ))}
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold text-white mb-2">
+            Setup Your AI Agent
+          </h1>
+          <div className="flex items-center justify-center space-x-2 text-sm text-slate-400">
+            <span>Step {currentStep + 1} of {steps.length}</span>
+            <span>•</span>
+            <span>{steps[currentStep]}</span>
           </div>
         </div>
 
-        {/* Save Status */}
-        {isSaving && (
-          <Alert className="border-blue-700 bg-blue-900/20 mb-4">
-            <AlertDescription className="text-blue-200">
-              Saving your progress...
-            </AlertDescription>
-          </Alert>
-        )}
+        {/* Progress Bar */}
+        <div className="mb-8">
+          <Progress value={progress} className="h-2 bg-slate-700" />
+        </div>
 
+        {/* Save Error Alert */}
         {saveError && (
-          <Alert className="border-red-700 bg-red-900/20 mb-4">
-            <AlertDescription className="text-red-200">
-              Error saving data: {saveError}
+          <Alert className="mb-6 border-red-700 bg-red-900/20">
+            <AlertDescription className="text-red-300">
+              {saveError}
             </AlertDescription>
           </Alert>
         )}
 
         {/* Step Content */}
-        <Card className="bg-slate-900 border-slate-800">
-          <CardContent className="p-8">{renderStep()}</CardContent>
-        </Card>
+        <div className="mb-8">
+          {renderStep()}
+        </div>
 
         {/* Navigation */}
-        <div className="flex justify-between mt-6">
+        <div className="flex justify-between items-center">
           <Button
-            onClick={handlePrevious}
-            disabled={currentStep === 0}
             variant="outline"
-            className="border-slate-700 text-slate-300 hover:bg-slate-800"
+            onClick={handlePrevious}
+            disabled={currentStep === 0 || isSaving}
+            className="border-slate-600 text-slate-300 hover:bg-slate-700"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Previous
           </Button>
 
-          {currentStep === steps.length - 1 ? (
-            <Button
-              onClick={handleComplete}
-              disabled={!canProceed() || isSaving}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-            >
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Complete Setup
-            </Button>
-          ) : (
-            <Button
-              onClick={handleNext}
-              disabled={!canProceed() || isSaving}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Next
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          )}
+          <div className="flex items-center space-x-2">
+            {isSaving && (
+              <div className="flex items-center text-slate-400 text-sm">
+                <div className="h-4 w-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin mr-2"></div>
+                Saving...
+              </div>
+            )}
+            
+            {currentStep === steps.length - 1 ? (
+              <Button 
+                onClick={handleComplete}
+                disabled={isSaving}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                Complete Setup
+                <CheckCircle className="ml-2 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                onClick={handleNext}
+                disabled={!canProceed() || isSaving}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Next
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>
