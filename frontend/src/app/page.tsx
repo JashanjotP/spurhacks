@@ -771,10 +771,12 @@ export default function VoiceAILanding() {
             your customer calls instantly
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 px-8 py-4 text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-              <Phone className="w-5 h-5 mr-2" />
-              Get Your AI Agent Now
-            </Button>
+            <a href="/auth/login">
+              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 px-8 py-4 text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                <Phone className="w-5 h-5 mr-2" />
+                Get Your AI Agent Now
+              </Button>
+            </a>
             <Button
               variant="outline"
               className="border-slate-600 text-slate-300 hover:bg-slate-800 px-8 py-4 text-lg hover:scale-105 transition-all duration-300"
