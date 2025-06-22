@@ -1,16 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Upload, FileText, CheckCircle, X, Database, FileSearch, RefreshCw } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { User } from "@supabase/supabase-js";
 
 export default function TestUpload() {
   const [files, setFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResults, setUploadResults] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  const supabase = createClient();
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+    };
+    getUser();
+  }, [supabase.auth]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -22,14 +35,19 @@ export default function TestUpload() {
   const handleUpload = async () => {
     if (files.length === 0) return;
 
+    // Check if user is authenticated
+    if (!currentUser) {
+      setError("No authenticated user found. Please log in first.");
+      return;
+    }
+
     setIsUploading(true);
     setError(null);
     setUploadResults([]);
 
     try {
-      // Use a test business ID
+      // Use a test business ID but real user ID
       const testBusinessId = "test-business-123";
-      const testUserId = "test-user-123";
       
       console.log("Starting file processing...");
       const results = [];
@@ -38,7 +56,7 @@ export default function TestUpload() {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('businessId', testBusinessId);
-        formData.append('userId', testUserId);
+        formData.append('userId', currentUser.id); // Use actual authenticated user ID
         formData.append('filename', file.name);
         
         try {

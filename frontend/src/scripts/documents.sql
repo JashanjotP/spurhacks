@@ -1,3 +1,6 @@
+-- Enable pgvector extension for vector embeddings
+CREATE EXTENSION IF NOT EXISTS vector;
+
 -- Create documents table
 CREATE TABLE IF NOT EXISTS documents (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -20,6 +23,7 @@ CREATE TABLE IF NOT EXISTS document_chunks (
     business_id TEXT NOT NULL,
     chunk_index INTEGER NOT NULL,
     content TEXT NOT NULL,
+    embedding vector(768), -- Add embedding column for vector search
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

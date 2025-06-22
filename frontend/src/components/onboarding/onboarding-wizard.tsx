@@ -36,6 +36,8 @@ import {
   X,
 } from "lucide-react";
 import { supabaseOnboardingService } from "@/lib/supabase/onboarding-service";
+import { createClient } from "@/lib/supabase/client";
+import { User } from "@supabase/supabase-js";
 
 interface OnboardingData {
   agentType: "faq" | "booking" | "order" | "";
@@ -113,6 +115,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [data, setData] = useState<OnboardingData>({
     agentType: "",
     businessName: "",
@@ -135,6 +138,11 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   useEffect(() => {
     const initializeSession = async () => {
       try {
+        // Get current authenticated user
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        setCurrentUser(user);
+        
         // Try to get existing session first
         let session = await supabaseOnboardingService.getCurrentSession();
         
@@ -339,6 +347,12 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const handleFileSelect = async (files: FileList | null) => {
     if (!files) return;
     
+    // Check if user is authenticated
+    if (!currentUser) {
+      console.error('No authenticated user found');
+      return;
+    }
+    
     const newFiles = Array.from(files);
     const validFiles = newFiles.filter(file => {
       const validTypes = ['.pdf'];
@@ -364,7 +378,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('businessId', sessionId || 'temp-business'); // Use sessionId as businessId
-      formData.append('userId', 'temp-user'); // This will be replaced with actual user ID from auth
+      formData.append('userId', currentUser.id); // Use actual authenticated user ID
       formData.append('filename', file.name);
       
       try {
