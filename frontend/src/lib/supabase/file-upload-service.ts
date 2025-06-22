@@ -1,4 +1,5 @@
 import { createClient } from './client';
+import pdfParse from 'pdf-parse/lib/pdf-parse';
 
 const supabase = createClient();
 
@@ -9,6 +10,7 @@ export interface UploadedFile {
   file_size: number;
   content: string;
   uploaded_at: string;
+  chunks_count: number;
 }
 
 export class FileUploadService {
@@ -32,61 +34,41 @@ export class FileUploadService {
     console.log(`👤 User ID: ${user.id}`);
     console.log(`📊 Files to upload:`, files.map(f => ({ name: f.name, size: f.size, type: f.type })));
 
-    // Ensure the storage bucket exists
-    console.log(`🔍 Checking storage bucket...`);
-    await this.ensureStorageBucket();
-
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       console.log(`\n📤 Processing file ${i + 1}/${files.length}: ${file.name}`);
       
       try {
-        console.log(`📖 Reading file content...`);
+        console.log(`📖 Extracting text content...`);
         const startTime = Date.now();
-        const content = await this.readFileContent(file);
-        const readTime = Date.now() - startTime;
-        console.log(`✅ File content read in ${readTime}ms, size: ${content.length} characters`);
-        
-        // Upload to Supabase Storage (files bucket)
-        const storagePath = `${businessId}/${file.name}`;
-        console.log(`☁️ Uploading to storage bucket 'files' at path: ${storagePath}`);
-        console.log(`📦 File size: ${file.size} bytes`);
-        
-        const uploadStartTime = Date.now();
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('files') // Changed from 'documents' to 'files'
-          .upload(storagePath, file, {
-            cacheControl: '3600',
-            upsert: false
-          });
+        const content = await this.extractTextContent(file);
+        const extractTime = Date.now() - startTime;
+        console.log(`✅ Text extracted in ${extractTime}ms, size: ${content.length} characters`);
 
-        const uploadTime = Date.now() - uploadStartTime;
-        console.log(`⏱️ Storage upload took ${uploadTime}ms`);
-
-        if (uploadError) {
-          console.error('❌ Storage upload error:', uploadError);
-          throw new Error(`Failed to upload file to storage: ${uploadError.message}`);
+        if (content.length === 0) {
+          console.warn(`⚠️ No text content extracted from ${file.name}`);
         }
 
-        console.log(`✅ File uploaded successfully to storage bucket:`, uploadData);
-
-        // Create document record in database table (also named 'documents')
-        console.log(`💾 Creating database record in documents table...`);
+        // Create document record in database
+        console.log(`💾 Creating document record in database...`);
         const dbStartTime = Date.now();
         
         const insertData = {
-          user_id: user.id, // Add user_id to fix RLS issue
+          user_id: user.id,
           business_id: businessId,
           filename: file.name,
           file_type: file.type || this.getFileExtension(file.name),
           file_size: file.size,
-          content: content,
+          content: content
         };
         
-        console.log('📝 Inserting data:', insertData);
+        console.log('📝 Inserting document data:', {
+          ...insertData,
+          content_length: insertData.content.length
+        });
         
         const { data: documentData, error: documentError } = await supabase
-          .from('documents') // This is your database table
+          .from('documents')
           .insert(insertData)
           .select()
           .single();
@@ -103,7 +85,6 @@ export class FileUploadService {
             hint: documentError.hint
           });
           
-          // If it's an RLS error, provide specific guidance
           if (documentError.message.includes('row-level security policy')) {
             throw new Error(`Database permission error: The current user doesn't have permission to insert into the documents table. Please check your Row Level Security policies.`);
           }
@@ -113,6 +94,41 @@ export class FileUploadService {
 
         console.log(`✅ Document record created in database:`, documentData);
 
+        // Create document chunks
+        console.log(`✂️ Creating document chunks...`);
+        const chunksStartTime = Date.now();
+        const chunks = this.createChunks(content);
+        console.log(`📦 Created ${chunks.length} chunks from content`);
+
+        const chunkData = chunks.map((chunk, index) => ({
+          document_id: documentData.id,
+          user_id: user.id,
+          business_id: businessId,
+          chunk_index: index,
+          content: chunk,
+          metadata: {
+            chunk_size: chunk.length,
+            total_chunks: chunks.length,
+            chunk_index: index,
+            original_filename: file.name
+          }
+        }));
+
+        const { error: chunksError } = await supabase
+          .from('document_chunks')
+          .insert(chunkData);
+
+        const chunksTime = Date.now() - chunksStartTime;
+        console.log(`⏱️ Chunks insert took ${chunksTime}ms`);
+
+        if (chunksError) {
+          console.error('❌ Chunks insert error:', chunksError);
+          // Don't fail the upload if chunks fail, but log the error
+          console.warn('⚠️ Document uploaded but chunks creation failed');
+        } else {
+          console.log(`✅ Created ${chunks.length} document chunks`);
+        }
+
         uploadedFiles.push({
           id: documentData.id,
           filename: documentData.filename,
@@ -120,68 +136,98 @@ export class FileUploadService {
           file_size: documentData.file_size,
           content: documentData.content,
           uploaded_at: documentData.uploaded_at,
+          chunks_count: chunks.length
         });
 
         const totalTime = Date.now() - startTime;
         console.log(`🎉 File ${file.name} completed in ${totalTime}ms total`);
 
       } catch (error) {
-        console.error(`❌ Error uploading file ${file.name}:`, error);
-        
-        // Clean up storage if database insert failed
-        if (error instanceof Error && error.message.includes('Database permission error')) {
-          console.log('🧹 Cleaning up storage file due to database error...');
-          const storagePath = `${businessId}/${file.name}`;
-          await supabase.storage.from('files').remove([storagePath]);
-        }
-        
+        console.error(`❌ Error processing file ${file.name}:`, error);
         throw error;
       }
     }
 
-    console.log(`\n🎊 All files uploaded successfully! Total files: ${uploadedFiles.length}`);
+    console.log(`\n🎊 All files processed successfully! Total files: ${uploadedFiles.length}`);
     return uploadedFiles;
   }
 
-  private async ensureStorageBucket(): Promise<void> {
-    try {
-      // Check if the storage bucket 'files' exists by trying to list files
-      const { data, error } = await supabase.storage
-        .from('files') // Changed from 'documents' to 'files'
-        .list('', { limit: 1 });
-
-      if (error) {
-        console.error('❌ Storage bucket check failed:', error);
-        throw new Error(`Storage bucket 'files' does not exist or is not accessible. Error: ${error.message}`);
-      }
-
-      console.log('✅ Storage bucket "files" is accessible');
-    } catch (error) {
-      console.error('Error checking storage bucket:', error);
-      throw error;
-    }
-  }
-
-  private async readFileContent(file: File): Promise<string> {
+  private async extractTextContent(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       
-      reader.onload = (e) => {
-        const content = e.target?.result as string;
-        resolve(content);
+      reader.onload = async (e) => {
+        try {
+          const arrayBuffer = e.target?.result as ArrayBuffer;
+          
+          if (file.type.includes('text') || file.name.endsWith('.txt')) {
+            // For text files, read as text
+            const textReader = new FileReader();
+            textReader.onload = (e) => {
+              const content = e.target?.result as string;
+              resolve(content);
+            };
+            textReader.onerror = () => reject(new Error('Failed to read text file'));
+            textReader.readAsText(file);
+          } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+            // For PDF files, use pdf-parse
+            try {
+              const uint8Array = new Uint8Array(arrayBuffer);
+              const buffer = Buffer.from(uint8Array);
+              const data = await pdfParse(buffer);
+              resolve(data.text);
+            } catch (pdfError) {
+              console.error('PDF parsing error:', pdfError);
+              reject(new Error(`Failed to parse PDF: ${pdfError instanceof Error ? pdfError.message : 'Unknown error'}`));
+            }
+          } else {
+            // For other file types, try to read as text or return empty
+            console.warn(`Unsupported file type: ${file.type}. Attempting to read as text...`);
+            try {
+              const textReader = new FileReader();
+              textReader.onload = (e) => {
+                const content = e.target?.result as string;
+                resolve(content);
+              };
+              textReader.onerror = () => {
+                console.warn(`Could not read file ${file.name} as text`);
+                resolve(''); // Return empty string for unsupported files
+              };
+              textReader.readAsText(file);
+            } catch (error) {
+              console.warn(`Could not process file ${file.name}`);
+              resolve(''); // Return empty string for unsupported files
+            }
+          }
+        } catch (error) {
+          reject(error);
+        }
       };
       
       reader.onerror = () => {
         reject(new Error('Failed to read file content'));
       };
 
-      if (file.type.includes('text') || file.name.endsWith('.txt')) {
-        reader.readAsText(file);
-      } else {
-        // For other file types, read as base64
-        reader.readAsDataURL(file);
-      }
+      reader.readAsArrayBuffer(file);
     });
+  }
+
+  private createChunks(content: string, chunkSize: number = 1000, overlap: number = 200): string[] {
+    if (content.length === 0) {
+      return [];
+    }
+
+    const chunks: string[] = [];
+    let start = 0;
+    
+    while (start < content.length) {
+      const end = Math.min(start + chunkSize, content.length);
+      const chunk = content.slice(start, end);
+      chunks.push(chunk);
+      start = end - overlap;
+    }
+    
+    return chunks;
   }
 
   private getFileExtension(filename: string): string {
@@ -197,10 +243,13 @@ export class FileUploadService {
     }
 
     const { data, error } = await supabase
-      .from('documents') // Database table
-      .select('*')
+      .from('documents')
+      .select(`
+        *,
+        document_chunks (count)
+      `)
       .eq('business_id', businessId)
-      .eq('user_id', user.id) // Add user_id filter for RLS
+      .eq('user_id', user.id)
       .order('uploaded_at', { ascending: false });
 
     if (error) {
@@ -208,7 +257,15 @@ export class FileUploadService {
       throw new Error(`Failed to fetch documents: ${error.message}`);
     }
 
-    return data || [];
+    return (data || []).map(doc => ({
+      id: doc.id,
+      filename: doc.filename,
+      file_type: doc.file_type,
+      file_size: doc.file_size,
+      content: doc.content,
+      uploaded_at: doc.uploaded_at,
+      chunks_count: doc.document_chunks?.length || 0
+    }));
   }
 
   async deleteDocument(documentId: string): Promise<void> {
@@ -220,62 +277,29 @@ export class FileUploadService {
 
     // Get document info first from database table
     const { data: document, error: fetchError } = await supabase
-      .from('documents') // Database table
+      .from('documents')
       .select('filename, business_id')
       .eq('id', documentId)
-      .eq('user_id', user.id) // Add user_id filter for RLS
+      .eq('user_id', user.id)
       .single();
 
     if (fetchError) {
       throw new Error(`Failed to fetch document: ${fetchError.message}`);
     }
 
-    // Delete from storage bucket
-    const storagePath = `${document.business_id}/${document.filename}`;
-    console.log(`🗑️ Deleting from storage bucket 'files' at path: ${storagePath}`);
-    
-    const { error: storageError } = await supabase.storage
-      .from('files') // Changed from 'documents' to 'files'
-      .remove([storagePath]);
-
-    if (storageError) {
-      console.error('❌ Storage delete error:', storageError);
-      // Continue with database deletion even if storage deletion fails
-    }
-
-    // Delete from database table
-    console.log(`🗑️ Deleting from database table 'documents'`);
+    // Delete from database (this will cascade to document_chunks)
+    console.log(`🗑️ Deleting document and chunks from database`);
     const { error: dbError } = await supabase
-      .from('documents') // Database table
+      .from('documents')
       .delete()
       .eq('id', documentId)
-      .eq('user_id', user.id); // Add user_id filter for RLS
+      .eq('user_id', user.id);
 
     if (dbError) {
       throw new Error(`Failed to delete document from database: ${dbError.message}`);
     }
 
-    console.log(`✅ Document deleted successfully from both storage and database`);
-  }
-
-  // Debug method to check storage bucket contents
-  async listStorageContents(businessId?: string): Promise<any> {
-    try {
-      const { data, error } = await supabase.storage
-        .from('files') // Changed from 'documents' to 'files'
-        .list(businessId || '', { limit: 100 });
-
-      if (error) {
-        console.error('Error listing storage contents:', error);
-        throw error;
-      }
-
-      console.log('Storage bucket contents:', data);
-      return data;
-    } catch (error) {
-      console.error('Error listing storage:', error);
-      throw error;
-    }
+    console.log(`✅ Document and chunks deleted successfully from database`);
   }
 
   // Debug method to check database table contents
@@ -287,7 +311,10 @@ export class FileUploadService {
         throw new Error('User must be authenticated to list documents');
       }
 
-      let query = supabase.from('documents').select('*'); // Database table
+      let query = supabase.from('documents').select(`
+        *,
+        document_chunks (count)
+      `);
       
       if (businessId) {
         query = query.eq('business_id', businessId);
@@ -307,6 +334,39 @@ export class FileUploadService {
       return data;
     } catch (error) {
       console.error('Error listing database documents:', error);
+      throw error;
+    }
+  }
+
+  // Debug method to check document chunks
+  async listDocumentChunks(documentId?: string): Promise<any> {
+    try {
+      // Verify authentication
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        throw new Error('User must be authenticated to list chunks');
+      }
+
+      let query = supabase.from('document_chunks').select('*');
+      
+      if (documentId) {
+        query = query.eq('document_id', documentId);
+      }
+
+      // Add user_id filter for RLS
+      query = query.eq('user_id', user.id);
+
+      const { data, error } = await query.limit(100);
+
+      if (error) {
+        console.error('Error listing document chunks:', error);
+        throw error;
+      }
+
+      console.log('Document chunks contents:', data);
+      return data;
+    } catch (error) {
+      console.error('Error listing document chunks:', error);
       throw error;
     }
   }

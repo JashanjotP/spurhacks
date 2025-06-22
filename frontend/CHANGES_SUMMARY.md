@@ -1,7 +1,7 @@
-# Changes Summary: Removed Vectorization, Focused on Simple Document Storage
+# Changes Summary: PDF Processing with Document Chunks
 
 ## Overview
-This document summarizes the changes made to remove vectorization logic and focus on simple document upload to Supabase storage.
+This document summarizes the changes made to implement PDF processing with text extraction and document chunking, removing Supabase storage dependency.
 
 ## Files Removed
 - `frontend/src/app/api/documents/process/route.ts` - Vector processing API
@@ -9,25 +9,27 @@ This document summarizes the changes made to remove vectorization logic and focu
 - `frontend/src/app/api/gemini/process/route.ts` - Gemini processing API
 - `frontend/src/app/api/gemini/search/route.ts` - Gemini search API
 - `frontend/src/scripts/vector-search.sql` - Vector search SQL function
+- `frontend/src/scripts/storage-setup.sql` - Storage setup (no longer needed)
 
 ## Files Modified
 
 ### 1. File Upload Service (`frontend/src/lib/supabase/file-upload-service.ts`)
+- **Removed**: Supabase storage upload functionality
 - **Removed**: Vector processing logic and API calls
-- **Removed**: Document chunking functionality
-- **Simplified**: Upload process now only stores files in Supabase Storage and creates basic document records
-- **Kept**: File content extraction, storage upload, and database record creation
-- **Updated**: Storage bucket name from 'documents' to 'files'
+- **Added**: PDF text extraction using pdf-parse library
+- **Added**: Text chunking functionality (1000 chars with 200 char overlap)
+- **Added**: Document chunks creation and storage
+- **Enhanced**: File type detection and text extraction for different formats
 - **Fixed**: RLS issues by adding user_id to all database operations
 - **Added**: Authentication checks and user_id filtering for all operations
 
 ### 2. Document Service (`frontend/src/lib/supabase/document-service.ts`)
 - **Removed**: Vector search functionality
-- **Removed**: Document chunk management
-- **Added**: Basic text search using PostgreSQL ILIKE
-- **Updated**: Document stats to show file sizes instead of chunk counts
-- **Simplified**: Interface to focus on basic document management
-- **Updated**: Storage bucket name from 'documents' to 'files'
+- **Removed**: Storage-related operations
+- **Added**: Document chunks management
+- **Added**: Chunk search functionality
+- **Enhanced**: Document stats to include chunk counts
+- **Added**: Search through individual chunks
 - **Fixed**: RLS issues by adding user_id filtering to all queries
 
 ### 3. Onboarding Service (`frontend/src/lib/supabase/onboarding-service.ts`)
@@ -38,113 +40,134 @@ This document summarizes the changes made to remove vectorization logic and focu
 
 ### 4. Database Schema (`frontend/src/scripts/documents.sql`)
 - **Removed**: pgvector extension
-- **Removed**: document_chunks table
-- **Removed**: Vector indexes and related policies
+- **Added**: document_chunks table with proper structure
+- **Added**: Indexes for document_chunks table
+- **Added**: RLS policies for document_chunks table
 - **Kept**: Basic documents table with file metadata and content
 - **Kept**: RLS policies for document access control
 
-### 5. Storage Setup (`frontend/src/scripts/storage-setup.sql`)
-- **Updated**: Storage bucket name from 'documents' to 'files'
-- **Updated**: All storage policies to reference 'files' bucket
-- **Added**: More restrictive RLS policies for production use
-
-### 6. Onboarding Wizard (`frontend/src/components/onboarding/onboarding-wizard.tsx`)
-- **Updated**: Success messages to remove vectorization references
-- **Simplified**: File upload completion messages
-- **Updated**: UI to reflect simple file storage
-
-### 7. Onboarding Page (`frontend/src/app/dashboard/onboarding/page.tsx`)
-- **Updated**: Success messages to remove vectorization references
-- **Simplified**: File processing status messages
-
-### 8. Test Upload Page (`frontend/src/app/dashboard/test-upload/page.tsx`)
-- **Updated**: Description to reflect simplified upload process and new storage bucket name
-- **Enhanced**: UI to show both database and storage information
-- **Improved**: File upload results display
-- **Added**: Separate storage and database content viewers
+### 5. Test Upload Page (`frontend/src/app/dashboard/test-upload/page.tsx`)
+- **Updated**: Description to reflect PDF processing approach
+- **Enhanced**: UI to show both documents and chunks information
+- **Improved**: File processing results display
+- **Added**: Separate documents and chunks content viewers
 - **Added**: Refresh buttons for debugging
+- **Removed**: Storage-related functionality
 
-### 9. Test Supabase Page (`frontend/src/app/dashboard/test-supabase/page.tsx`)
-- **Updated**: Database schema description
-- **Removed**: Vector search feature references
-- **Updated**: Feature list to reflect current capabilities
-
-### 10. Documentation Files
-- **FILE_UPLOAD_SETUP.md**: Completely rewritten to focus on simple storage with 'files' bucket
-- **SUPABASE_SETUP.md**: Updated to remove vectorization setup steps
+### 6. Documentation Files
+- **FILE_UPLOAD_SETUP.md**: Completely rewritten to focus on PDF processing and chunking
+- **SUPABASE_SETUP.md**: Updated to remove storage setup steps
 
 ## Current Functionality
 
 ### What Works Now
-1. **File Upload**: Files are uploaded to Supabase Storage bucket named 'files'
-2. **Database Records**: Document metadata is stored in the documents table
-3. **Basic Search**: Text search through filenames and content using PostgreSQL ILIKE
-4. **File Management**: Upload, view, and delete documents
-5. **Business Organization**: Files are organized by business ID
-6. **Proper Authentication**: All operations require user authentication
-7. **RLS Compliance**: All database operations include user_id filtering
+1. **PDF Processing**: PDF files are processed using pdf-parse for text extraction
+2. **Text Chunking**: Content is split into manageable chunks for efficient searching
+3. **Database Storage**: All data stored in documents and document_chunks tables
+4. **Multiple Search Options**: Document-level and chunk-level search capabilities
+5. **File Management**: Upload, view, and delete documents with chunks
+6. **Business Organization**: Files are organized by business ID
+7. **Proper Authentication**: All operations require user authentication
+8. **RLS Compliance**: All database operations include user_id filtering
 
 ### What Was Removed
-1. **Vector Embeddings**: No more Gemini API calls for embedding generation
-2. **Document Chunking**: No more text chunking into smaller pieces
+1. **Supabase Storage**: No more file storage in Supabase buckets
+2. **Vector Embeddings**: No more Gemini API calls for embedding generation
 3. **Vector Search**: No more semantic similarity search
 4. **Complex Processing**: No more async vector processing pipeline
 
-## Storage Structure
+## Database Schema
 
-```
-Supabase Storage:
-files/
-├── {businessId}/
-│   ├── document1.pdf
-│   ├── document2.docx
-│   └── document3.txt
-```
+### documents table
+- `id`: UUID primary key
+- `user_id`: References auth.users
+- `business_id`: Business identifier
+- `filename`: Original filename
+- `file_type`: File MIME type
+- `file_size`: File size in bytes
+- `content`: Full extracted text content
+- `uploaded_at`: Upload timestamp
+- `created_at`: Record creation timestamp
+- `updated_at`: Record update timestamp
 
-## RLS (Row Level Security) Implementation
+### document_chunks table
+- `id`: UUID primary key
+- `document_id`: References documents
+- `user_id`: References auth.users
+- `business_id`: Business identifier
+- `chunk_index`: Position in document
+- `content`: Text chunk content
+- `metadata`: JSON metadata (chunk size, total chunks, etc.)
+- `created_at`: Record creation timestamp
 
-The system now properly implements RLS:
-- **Authentication Required**: All operations verify user authentication
-- **User-Specific Access**: Users can only access their own documents
-- **Database Filtering**: All queries include user_id filters
-- **Storage Policies**: Storage bucket has appropriate access policies
+## Text Processing Details
 
-## Benefits of Simplification
+### PDF Extraction
+- Uses `pdf-parse` library for reliable text extraction
+- Handles various PDF formats and layouts
+- Extracts all text content from PDF files
 
-1. **Faster Uploads**: No waiting for vector processing
-2. **Reduced Complexity**: Simpler codebase and database schema
-3. **Lower Costs**: No Gemini API usage
-4. **Better Reliability**: Fewer potential failure points
-5. **Easier Debugging**: Simpler architecture
-6. **Better Security**: Proper RLS implementation
-7. **Clearer Naming**: Storage bucket named 'files' for clarity
+### Text Chunking
+- Content split into 1000-character chunks with 200-character overlap
+- Each chunk stored separately for efficient searching
+- Metadata includes chunk information and original filename
 
-## Future Enhancements
+### File Type Support
+- **PDF**: Full text extraction using pdf-parse
+- **Text files**: Direct text reading
+- **Other formats**: Attempts text extraction, falls back gracefully
 
-The simplified system provides a solid foundation for future improvements:
+## Search Functionality
 
-1. **Better Text Extraction**: Implement proper PDF and Word document text extraction
-2. **File Preview**: Add document preview functionality
-3. **Advanced Search**: Implement full-text search with PostgreSQL
-4. **Document Versioning**: Add version control for uploaded files
-5. **Bulk Operations**: Add bulk upload and management features
+The system now provides multiple search options:
+- **Document Search**: Searches through document filenames and full content
+- **Chunk Search**: Searches through individual text chunks
+- **Business-Specific**: All searches scoped to user's business
+- **User-Specific**: All searches respect RLS policies
+
+## Benefits of New Approach
+
+1. **Better Text Extraction**: Reliable PDF text extraction using pdf-parse
+2. **Efficient Searching**: Text chunking improves search performance
+3. **No Storage Dependency**: All data stored in database tables
+4. **Lower Costs**: No Supabase storage usage
+5. **Better Reliability**: Fewer external dependencies
+6. **Easier Debugging**: Simpler architecture
+7. **Better Security**: Proper RLS implementation
+8. **Scalable**: Database-based approach scales better
+
+## Dependencies Added
+
+- `pdf-parse`: For PDF text extraction
+- `@types/pdf-parse`: TypeScript definitions
 
 ## Testing
 
-To test the simplified system:
+To test the new system:
 
-1. Run the updated SQL scripts in Supabase (documents.sql and storage-setup.sql)
+1. Run the updated documents.sql script in Supabase
 2. Use the test upload page at `/dashboard/test-upload`
-3. Verify files are stored in Supabase Storage bucket 'files'
+3. Upload PDF files and verify text extraction
 4. Check that document records are created in the database
-5. Test basic text search functionality
-6. Verify RLS policies are working correctly
+5. Verify that chunks are created in the document_chunks table
+6. Test both document and chunk search functionality
+7. Verify RLS policies are working correctly
 
 ## Migration Notes
 
-If you had existing data with vector embeddings:
-- The document_chunks table will be dropped
+If you had existing data:
+- Storage bucket data will no longer be used
 - Existing documents will remain in the documents table
-- Vector search functionality will no longer work
-- Basic text search will still work for existing documents
-- Storage bucket name change requires running the updated storage-setup.sql script 
+- New document_chunks table will be created
+- PDF processing will work for new uploads
+- Text chunking will be applied to new documents
+
+## Future Enhancements
+
+The new system provides a solid foundation for:
+1. Better Word document text extraction
+2. Advanced search with full-text indexing
+3. Document preview functionality
+4. Document versioning
+5. Bulk processing capabilities
+6. Vector embeddings for chunks (if needed later) 
