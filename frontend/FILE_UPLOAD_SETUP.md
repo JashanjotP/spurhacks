@@ -20,7 +20,7 @@ Execute the documents schema to create the necessary tables:
 ```
 
 ### 2. Set Up Storage Bucket
-Create the storage bucket for documents:
+Create the storage bucket for files:
 
 ```sql
 -- Run this in your Supabase SQL editor
@@ -40,7 +40,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ## File Upload Flow
 
 1. **User uploads files** during onboarding
-2. **Files are stored** in Supabase Storage under `documents/{businessId}/{filename}`
+2. **Files are stored** in Supabase Storage under `files/{businessId}/{filename}`
 3. **Document records** are created in the `documents` table
 4. **Text content** is extracted from files
 5. **Basic search** becomes available for the business
@@ -55,7 +55,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 ```
 Supabase Storage:
-documents/
+files/
 ├── {businessId}/
 │   ├── document1.pdf
 │   ├── document2.docx
@@ -125,6 +125,13 @@ The storage bucket is configured with the following policies:
 - Authenticated users can delete their own files
 - Files are organized by business ID for easy management
 
+## Row Level Security (RLS)
+
+The system includes proper RLS policies:
+- Users can only access their own documents
+- All database operations include user_id filtering
+- Storage operations are properly authenticated
+
 ## Troubleshooting
 
 ### Common Issues:
@@ -132,16 +139,24 @@ The storage bucket is configured with the following policies:
 1. **Storage bucket not found**
    - Run the storage setup script
    - Check bucket permissions
+   - Verify bucket name is 'files'
 
 2. **Upload failures**
    - Verify file size limits (10MB)
    - Check supported file types
    - Ensure user is authenticated
+   - Check RLS policies are in place
 
 3. **Database errors**
    - Run the documents schema script
    - Check RLS policies
    - Verify table permissions
+   - Ensure user_id is included in inserts
+
+4. **RLS Policy Errors**
+   - Verify user authentication
+   - Check that user_id is being passed correctly
+   - Ensure RLS policies are properly configured
 
 ## Next Steps
 

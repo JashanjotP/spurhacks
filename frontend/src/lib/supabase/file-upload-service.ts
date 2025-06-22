@@ -17,13 +17,22 @@ export class FileUploadService {
   }
 
   async uploadFiles(files: File[], businessId: string): Promise<UploadedFile[]> {
+    // First, verify user authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('❌ Authentication error:', authError);
+      throw new Error('User must be authenticated to upload files');
+    }
+    console.log('✅ User authenticated:', user.id);
+
     const uploadedFiles: UploadedFile[] = [];
 
     console.log(`🚀 Starting upload process for ${files.length} files`);
     console.log(`📁 Business ID: ${businessId}`);
+    console.log(`👤 User ID: ${user.id}`);
     console.log(`📊 Files to upload:`, files.map(f => ({ name: f.name, size: f.size, type: f.type })));
 
-    // First, ensure the storage bucket exists
+    // Ensure the storage bucket exists
     console.log(`🔍 Checking storage bucket...`);
     await this.ensureStorageBucket();
 
@@ -38,14 +47,14 @@ export class FileUploadService {
         const readTime = Date.now() - startTime;
         console.log(`✅ File content read in ${readTime}ms, size: ${content.length} characters`);
         
-        // Upload to Supabase Storage
+        // Upload to Supabase Storage (files bucket)
         const storagePath = `${businessId}/${file.name}`;
-        console.log(`☁️ Uploading to storage path: ${storagePath}`);
+        console.log(`☁️ Uploading to storage bucket 'files' at path: ${storagePath}`);
         console.log(`📦 File size: ${file.size} bytes`);
         
         const uploadStartTime = Date.now();
         const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('documents')
+          .from('files') // Changed from 'documents' to 'files'
           .upload(storagePath, file, {
             cacheControl: '3600',
             upsert: false
@@ -56,23 +65,29 @@ export class FileUploadService {
 
         if (uploadError) {
           console.error('❌ Storage upload error:', uploadError);
-          throw new Error(`Failed to upload file: ${uploadError.message}`);
+          throw new Error(`Failed to upload file to storage: ${uploadError.message}`);
         }
 
-        console.log(`✅ File uploaded successfully to storage:`, uploadData);
+        console.log(`✅ File uploaded successfully to storage bucket:`, uploadData);
 
-        // Create document record in database
-        console.log(`💾 Creating database record...`);
+        // Create document record in database table (also named 'documents')
+        console.log(`💾 Creating database record in documents table...`);
         const dbStartTime = Date.now();
+        
+        const insertData = {
+          user_id: user.id, // Add user_id to fix RLS issue
+          business_id: businessId,
+          filename: file.name,
+          file_type: file.type || this.getFileExtension(file.name),
+          file_size: file.size,
+          content: content,
+        };
+        
+        console.log('📝 Inserting data:', insertData);
+        
         const { data: documentData, error: documentError } = await supabase
-          .from('documents')
-          .insert({
-            business_id: businessId,
-            filename: file.name,
-            file_type: file.type || this.getFileExtension(file.name),
-            file_size: file.size,
-            content: content,
-          })
+          .from('documents') // This is your database table
+          .insert(insertData)
           .select()
           .single();
 
@@ -81,10 +96,22 @@ export class FileUploadService {
 
         if (documentError) {
           console.error('❌ Database insert error:', documentError);
+          console.error('📋 Error details:', {
+            code: documentError.code,
+            message: documentError.message,
+            details: documentError.details,
+            hint: documentError.hint
+          });
+          
+          // If it's an RLS error, provide specific guidance
+          if (documentError.message.includes('row-level security policy')) {
+            throw new Error(`Database permission error: The current user doesn't have permission to insert into the documents table. Please check your Row Level Security policies.`);
+          }
+          
           throw new Error(`Failed to create document record: ${documentError.message}`);
         }
 
-        console.log(`✅ Document record created:`, documentData);
+        console.log(`✅ Document record created in database:`, documentData);
 
         uploadedFiles.push({
           id: documentData.id,
@@ -100,6 +127,14 @@ export class FileUploadService {
 
       } catch (error) {
         console.error(`❌ Error uploading file ${file.name}:`, error);
+        
+        // Clean up storage if database insert failed
+        if (error instanceof Error && error.message.includes('Database permission error')) {
+          console.log('🧹 Cleaning up storage file due to database error...');
+          const storagePath = `${businessId}/${file.name}`;
+          await supabase.storage.from('files').remove([storagePath]);
+        }
+        
         throw error;
       }
     }
@@ -110,17 +145,17 @@ export class FileUploadService {
 
   private async ensureStorageBucket(): Promise<void> {
     try {
-      // Check if the bucket exists by trying to list files
+      // Check if the storage bucket 'files' exists by trying to list files
       const { data, error } = await supabase.storage
-        .from('documents')
+        .from('files') // Changed from 'documents' to 'files'
         .list('', { limit: 1 });
 
       if (error) {
-        console.error('Storage bucket check failed:', error);
-        throw new Error(`Storage bucket 'documents' does not exist or is not accessible. Please run the storage setup script.`);
+        console.error('❌ Storage bucket check failed:', error);
+        throw new Error(`Storage bucket 'files' does not exist or is not accessible. Error: ${error.message}`);
       }
 
-      console.log('Storage bucket "documents" is accessible');
+      console.log('✅ Storage bucket "files" is accessible');
     } catch (error) {
       console.error('Error checking storage bucket:', error);
       throw error;
@@ -143,8 +178,7 @@ export class FileUploadService {
       if (file.type.includes('text') || file.name.endsWith('.txt')) {
         reader.readAsText(file);
       } else {
-        // For other file types, read as base64 for now
-        // In a real implementation, you'd want to extract text from PDFs, DOCs, etc.
+        // For other file types, read as base64
         reader.readAsDataURL(file);
       }
     });
@@ -156,10 +190,17 @@ export class FileUploadService {
   }
 
   async getDocumentsByBusiness(businessId: string): Promise<UploadedFile[]> {
+    // Verify authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('User must be authenticated to fetch documents');
+    }
+
     const { data, error } = await supabase
-      .from('documents')
+      .from('documents') // Database table
       .select('*')
       .eq('business_id', businessId)
+      .eq('user_id', user.id) // Add user_id filter for RLS
       .order('uploaded_at', { ascending: false });
 
     if (error) {
@@ -171,44 +212,57 @@ export class FileUploadService {
   }
 
   async deleteDocument(documentId: string): Promise<void> {
-    // Get document info first
+    // Verify authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('User must be authenticated to delete documents');
+    }
+
+    // Get document info first from database table
     const { data: document, error: fetchError } = await supabase
-      .from('documents')
+      .from('documents') // Database table
       .select('filename, business_id')
       .eq('id', documentId)
+      .eq('user_id', user.id) // Add user_id filter for RLS
       .single();
 
     if (fetchError) {
       throw new Error(`Failed to fetch document: ${fetchError.message}`);
     }
 
-    // Delete from storage
+    // Delete from storage bucket
     const storagePath = `${document.business_id}/${document.filename}`;
+    console.log(`🗑️ Deleting from storage bucket 'files' at path: ${storagePath}`);
+    
     const { error: storageError } = await supabase.storage
-      .from('documents')
+      .from('files') // Changed from 'documents' to 'files'
       .remove([storagePath]);
 
     if (storageError) {
-      console.error('Storage delete error:', storageError);
+      console.error('❌ Storage delete error:', storageError);
       // Continue with database deletion even if storage deletion fails
     }
 
-    // Delete from database
+    // Delete from database table
+    console.log(`🗑️ Deleting from database table 'documents'`);
     const { error: dbError } = await supabase
-      .from('documents')
+      .from('documents') // Database table
       .delete()
-      .eq('id', documentId);
+      .eq('id', documentId)
+      .eq('user_id', user.id); // Add user_id filter for RLS
 
     if (dbError) {
-      throw new Error(`Failed to delete document: ${dbError.message}`);
+      throw new Error(`Failed to delete document from database: ${dbError.message}`);
     }
+
+    console.log(`✅ Document deleted successfully from both storage and database`);
   }
 
   // Debug method to check storage bucket contents
   async listStorageContents(businessId?: string): Promise<any> {
     try {
       const { data, error } = await supabase.storage
-        .from('documents')
+        .from('files') // Changed from 'documents' to 'files'
         .list(businessId || '', { limit: 100 });
 
       if (error) {
@@ -216,13 +270,46 @@ export class FileUploadService {
         throw error;
       }
 
-      console.log('Storage contents:', data);
+      console.log('Storage bucket contents:', data);
       return data;
     } catch (error) {
       console.error('Error listing storage:', error);
       throw error;
     }
   }
+
+  // Debug method to check database table contents
+  async listDatabaseDocuments(businessId?: string): Promise<any> {
+    try {
+      // Verify authentication
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        throw new Error('User must be authenticated to list documents');
+      }
+
+      let query = supabase.from('documents').select('*'); // Database table
+      
+      if (businessId) {
+        query = query.eq('business_id', businessId);
+      }
+
+      // Add user_id filter for RLS
+      query = query.eq('user_id', user.id);
+
+      const { data, error } = await query.limit(100);
+
+      if (error) {
+        console.error('Error listing database documents:', error);
+        throw error;
+      }
+
+      console.log('Database table contents:', data);
+      return data;
+    } catch (error) {
+      console.error('Error listing database documents:', error);
+      throw error;
+    }
+  }
 }
 
-export const fileUploadService = new FileUploadService(); 
+export const fileUploadService = new FileUploadService();

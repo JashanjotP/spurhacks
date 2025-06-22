@@ -21,10 +21,17 @@ export class DocumentService {
   }
 
   async getDocumentsByBusiness(businessId: string): Promise<Document[]> {
+    // Verify authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('User must be authenticated to fetch documents');
+    }
+
     const { data, error } = await supabase
       .from('documents')
       .select('*')
       .eq('business_id', businessId)
+      .eq('user_id', user.id) // Add user_id filter for RLS
       .order('uploaded_at', { ascending: false });
 
     if (error) {
@@ -36,10 +43,17 @@ export class DocumentService {
   }
 
   async getDocumentById(documentId: string): Promise<Document | null> {
+    // Verify authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('User must be authenticated to fetch documents');
+    }
+
     const { data, error } = await supabase
       .from('documents')
       .select('*')
       .eq('id', documentId)
+      .eq('user_id', user.id) // Add user_id filter for RLS
       .single();
 
     if (error) {
@@ -51,11 +65,18 @@ export class DocumentService {
   }
 
   async deleteDocument(documentId: string): Promise<void> {
+    // Verify authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('User must be authenticated to delete documents');
+    }
+
     // Get document info first
     const { data: document, error: fetchError } = await supabase
       .from('documents')
       .select('filename, business_id')
       .eq('id', documentId)
+      .eq('user_id', user.id) // Add user_id filter for RLS
       .single();
 
     if (fetchError) {
@@ -65,7 +86,7 @@ export class DocumentService {
     // Delete from storage
     const storagePath = `${document.business_id}/${document.filename}`;
     const { error: storageError } = await supabase.storage
-      .from('documents')
+      .from('files') // Changed from 'documents' to 'files'
       .remove([storagePath]);
 
     if (storageError) {
@@ -77,7 +98,8 @@ export class DocumentService {
     const { error: dbError } = await supabase
       .from('documents')
       .delete()
-      .eq('id', documentId);
+      .eq('id', documentId)
+      .eq('user_id', user.id); // Add user_id filter for RLS
 
     if (dbError) {
       throw new Error(`Failed to delete document: ${dbError.message}`);
@@ -85,10 +107,17 @@ export class DocumentService {
   }
 
   async getDocumentStats(businessId: string) {
+    // Verify authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('User must be authenticated to fetch document stats');
+    }
+
     const { data: documents, error: docError } = await supabase
       .from('documents')
       .select('id, file_size')
-      .eq('business_id', businessId);
+      .eq('business_id', businessId)
+      .eq('user_id', user.id); // Add user_id filter for RLS
 
     if (docError) {
       throw new Error(`Failed to fetch document stats: ${docError.message}`);
@@ -104,10 +133,17 @@ export class DocumentService {
   }
 
   async searchDocuments(query: string, businessId: string, limit: number = 5): Promise<Document[]> {
+    // Verify authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('User must be authenticated to search documents');
+    }
+
     const { data, error } = await supabase
       .from('documents')
       .select('*')
       .eq('business_id', businessId)
+      .eq('user_id', user.id) // Add user_id filter for RLS
       .or(`filename.ilike.%${query}%,content.ilike.%${query}%`)
       .order('uploaded_at', { ascending: false })
       .limit(limit);
