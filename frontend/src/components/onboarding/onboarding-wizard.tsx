@@ -36,7 +36,6 @@ import {
   X,
 } from "lucide-react";
 import { supabaseOnboardingService } from "@/lib/supabase/onboarding-service";
-//import { fileUploadService } from "@/lib/supabase/file-upload-service";
 
 interface OnboardingData {
   agentType: "faq" | "booking" | "order" | "";
@@ -282,70 +281,33 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   };
 
   const handleComplete = async () => {
-    // Generate a mock phone number
-    const phoneNumber = `+1 (555) ${Math.floor(Math.random() * 900) + 100}-${
-      Math.floor(Math.random() * 9000) + 1000
-    }`;
-    
-    const finalData = { ...data, phoneNumber };
-    
-    // Save final data before completing
-    if (sessionId) {
-      await saveStepData(finalData, currentStep);
-    }
-    console.log('entering the submission');
-    // Upload files if any were selected
-    if (data.uploadedFiles.length > 0 && sessionId) {
-      try {
-        console.log('Starting immediate file upload...');
-        
-        // Get the business ID from the session
-        const session = await supabaseOnboardingService.getCurrentSession();
-        if (session && session.business_id) {
-          console.log('Uploading files to Supabase with business ID:', session.business_id);
-          //const uploadedFiles = await fileUploadService.uploadFiles(data.uploadedFiles, session.business_id);
-          //console.log('Files uploaded successfully:', uploadedFiles);
-          
-          // Store upload results separately
-          setData(prev => ({
-            ...prev,
-            uploadedFileResults: [...prev.uploadedFileResults, ...uploadedFiles]
-          }));
-        } else {
-          console.warn('No business ID found in session, creating temporary one...');
-          
-          // Create a temporary business ID if we have business info
-          if (data.businessName && data.businessType) {
-            const tempBusinessId = await supabaseOnboardingService.createTemporaryBusinessId(
-              sessionId, 
-              data.businessName, 
-              data.businessType
-            );
-            
-            if (tempBusinessId) {
-              console.log('Created temporary business ID:', tempBusinessId);
-              const uploadedFiles = await fileUploadService.uploadFiles(data.uploadedFiles, tempBusinessId);
-              console.log('Files uploaded successfully:', uploadedFiles);
-              
-              // Store upload results separately
-              setData(prev => ({
-                ...prev,
-                uploadedFileResults: [...prev.uploadedFileResults, ...uploadedFiles]
-              }));
-            } else {
-              console.error('Failed to create temporary business ID');
-            }
-          } else {
-            console.warn('No business info available, files will be uploaded later');
-          }
-        }
-      } catch (error) {
-        console.error('Error uploading files:', error);
-        // Don't fail the onboarding if upload fails
+    if (!sessionId) return;
+
+    try {
+      setIsSaving(true);
+      setSaveError(null);
+
+      // Complete onboarding with final data
+      const business = await supabaseOnboardingService.completeOnboarding(sessionId, data);
+
+      if (!business) {
+        throw new Error('Failed to complete onboarding');
       }
+
+      const finalData = {
+        ...data,
+        businessId: business.id
+      };
+
+      console.log('Onboarding completed successfully:', finalData);
+      
+      onComplete(finalData);
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+      setSaveError(error instanceof Error ? error.message : 'Failed to complete onboarding');
+    } finally {
+      setIsSaving(false);
     }
-    
-    onComplete(finalData);
   };
 
   const canProceed = () => {
@@ -374,108 +336,75 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     return () => clearTimeout(timeoutId);
   }, [data, sessionId, currentStep]);
 
-  // File upload handlers
-  // const handleFileSelect = async (files: FileList | null) => {
-  //   if (!files) return;
-    
-  //   const newFiles = Array.from(files);
-  //   const validFiles = newFiles.filter(file => {
-  //     const validTypes = ['.pdf', '.doc', '.docx', '.txt'];
-  //     const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-  //     return validTypes.includes(fileExtension) && file.size <= 10 * 1024 * 1024; // 10MB limit
-  //   });
-    
-  //   setData(prev => ({
-  //     ...prev,
-  //     uploadedFiles: [...prev.uploadedFiles, ...validFiles]
-  //   }));
-
-  //   // Upload files immediately if we have a session
-  //   if (sessionId && validFiles.length > 0) {
-  //     try {
-  //       console.log('Starting immediate file upload...');
-        
-  //       // Get the business ID from the session
-  //       const session = await supabaseOnboardingService.getCurrentSession();
-  //       if (session && session.business_id) {
-  //         console.log('Uploading files to Supabase with business ID:', session.business_id);
-  //         const uploadedFiles = await fileUploadService.uploadFiles(validFiles, session.business_id);
-  //         console.log('Files uploaded successfully:', uploadedFiles);
-          
-  //         // Store upload results separately
-  //         setData(prev => ({
-  //           ...prev,
-  //           uploadedFileResults: [...prev.uploadedFileResults, ...uploadedFiles]
-  //         }));
-  //       } else {
-  //         console.warn('No business ID found in session, creating temporary one...');
-          
-  //         // Create a temporary business ID if we have business info
-  //         if (data.businessName && data.businessType) {
-  //           const tempBusinessId = await supabaseOnboardingService.createTemporaryBusinessId(
-  //             sessionId, 
-  //             data.businessName, 
-  //             data.businessType
-  //           );
-            
-  //           if (tempBusinessId) {
-  //             console.log('Created temporary business ID:', tempBusinessId);
-  //             const uploadedFiles = await fileUploadService.uploadFiles(validFiles, tempBusinessId);
-  //             console.log('Files uploaded successfully:', uploadedFiles);
-              
-  //             // Store upload results separately
-  //             setData(prev => ({
-  //               ...prev,
-  //               uploadedFileResults: [...prev.uploadedFileResults, ...uploadedFiles]
-  //             }));
-  //           } else {
-  //             console.error('Failed to create temporary business ID');
-  //           }
-  //         } else {
-  //           console.warn('No business info available, files will be uploaded later');
-  //         }
-  //       }
-  //     } catch (error) {
-  //       console.error('Error uploading files:', error);
-  //       // Don't fail the onboarding if upload fails
-  //     }
-  //   }
-  // };
   const handleFileSelect = async (files: FileList | null) => {
-  if (!files) return;
-  
-  const newFiles = Array.from(files);
-  const validFiles = newFiles.filter(file => {
-    const validTypes = ['.pdf'];
-    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-    return validTypes.includes(fileExtension) && file.size <= 10 * 1024 * 1024;
-  });
-  
-  // Process each file
-  for (const file of validFiles) {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('businessId', businessId); // Get from your state
-    formData.append('userId', userId); // Get from your auth
-    formData.append('filename', file.name);
+    if (!files) return;
     
-    try {
-      const response = await fetch('/api/process-pdf', {
-        method: 'POST',
-        body: formData,
-      });
+    const newFiles = Array.from(files);
+    const validFiles = newFiles.filter(file => {
+      const validTypes = ['.pdf'];
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      return validTypes.includes(fileExtension) && file.size <= 10 * 1024 * 1024;
+    });
+    
+    // Add valid files to state
+    setData(prev => ({
+      ...prev,
+      uploadedFiles: [...prev.uploadedFiles, ...validFiles]
+    }));
+    
+    // Process each file
+    const uploadResults: Array<{
+      filename: string;
+      success: boolean;
+      data?: any;
+      error?: string;
+    }> = [];
+    
+    for (const file of validFiles) {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('businessId', sessionId || 'temp-business'); // Use sessionId as businessId
+      formData.append('userId', 'temp-user'); // This will be replaced with actual user ID from auth
+      formData.append('filename', file.name);
       
-      const result = await response.json();
-      if (response.ok) {
-        console.log('File processed successfully:', result);
-      } else {
-        console.error('Error processing file:', result.message);
+      try {
+        const response = await fetch('/api/parse-pdf', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+          console.log('File processed successfully:', result);
+          uploadResults.push({
+            filename: file.name,
+            success: true,
+            data: result.data
+          });
+        } else {
+          console.error('Error processing file:', result.message);
+          uploadResults.push({
+            filename: file.name,
+            success: false,
+            error: result.message
+          });
+        }
+      } catch (error) {
+        console.error('Upload failed:', error);
+        uploadResults.push({
+          filename: file.name,
+          success: false,
+          error: error instanceof Error ? error.message : 'Upload failed'
+        });
       }
-    } catch (error) {
-      console.error('Upload failed:', error);
     }
-  }
-};
+    
+    // Store upload results
+    setData(prev => ({
+      ...prev,
+      uploadedFileResults: [...prev.uploadedFileResults, ...uploadResults]
+    }));
+  };
 
   const handleFileDrop = async (e: React.DragEvent) => {
     e.preventDefault();
