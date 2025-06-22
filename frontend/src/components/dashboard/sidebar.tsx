@@ -62,24 +62,24 @@ const navigation = [
   },
 ]
 
-const developmentNavigation = [
-  {
-    title: "Test Supabase",
-    href: "/dashboard/test-supabase",
-    icon: TestTube,
-    // description: "Test database integration"
-  },
-  {
-    title: "Test Upload",
-    href: "/dashboard/test-upload",
-    icon: Upload,
-    // description: "Test file uploads"
-  },
-  {
-    title: "Test Onboading",
-    href: "/dashboard/onboarding",
-    icon: PersonStandingIcon,}
-]
+// const developmentNavigation = [
+//   {
+//     title: "Test Supabase",
+//     href: "/dashboard/test-supabase",
+//     icon: TestTube,
+//     // description: "Test database integration"
+//   },
+//   {
+//     title: "Test Upload",
+//     href: "/dashboard/test-upload",
+//     icon: Upload,
+//     // description: "Test file uploads"
+//   },
+//   {
+//     title: "Test Onboading",
+//     href: "/dashboard/onboarding",
+//     icon: PersonStandingIcon,}
+// ]
 
 export function DashboardSidebar() {
   const pathname = usePathname()
@@ -97,7 +97,7 @@ export function DashboardSidebar() {
             <Brain className="h-7 w-7 text-white" />
           </div>
           <div>
-            <h1 className="font-bold text-lg">AI Voice Agent</h1>
+            <h1 className="font-bold text-lg">FrontDesk AI</h1>
             <p className="text-xs text-slate-400">Dashboard v2.0</p>
           </div>
         </div>
@@ -144,6 +144,7 @@ export function DashboardSidebar() {
         </SidebarGroup>
 
         {/* Development Tools */}
+        {/*
         <SidebarGroup className="mt-6">
           <SidebarGroupLabel className="text-slate-400 text-xs font-semibold uppercase tracking-wider px-2 mb-2">
             Development
@@ -170,7 +171,7 @@ export function DashboardSidebar() {
                         <div>
                           <p className="font-semibold text-sm">{item.title}</p>
                           {/* <p className={`text-xs transition-colors duration-200 ${isActive ? "text-orange-200" : "text-slate-400"}`}>{item.description}</p> */}
-                        </div>
+                        {/* </div>
                         {isActive && (
                           <div className="ml-auto w-2 h-2 bg-white rounded-full" />
                         )}
@@ -181,7 +182,8 @@ export function DashboardSidebar() {
               })}
             </SidebarMenu>
           </SidebarGroupContent>
-        </SidebarGroup>
+        </SidebarGroup> */}
+        
 
         <div className="mt-6 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
           <h3 className="text-xs font-semibold uppercase text-slate-400 mb-2">Quick Stats</h3>

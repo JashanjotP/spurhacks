@@ -475,7 +475,7 @@ export default function VoiceAILanding() {
           <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
             <Phone className="w-6 h-6 text-white animate-pulse" />
           </div>
-          <span className="text-2xl font-bold text-white">VoiceAI</span>
+          <span className="text-2xl font-bold text-white">FrontDesk AI</span>
         </div>
         <nav className="hidden md:flex space-x-8">
           {["Features", "Pricing", "Demo", "Support"].map((item) => (
@@ -800,10 +800,10 @@ export default function VoiceAILanding() {
             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
               <Phone className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-white">VoiceAI</span>
+            <span className="text-xl font-bold text-white">FrontDesk AI</span>
           </div>
           <div className="text-slate-400">
-            © 2025 VoiceAI. Revolutionizing customer service.
+            © 2025 FrontDesk AI. Revolutionizing customer service.
           </div>
         </div>
       </footer>
