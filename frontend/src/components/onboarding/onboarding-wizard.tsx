@@ -832,79 +832,25 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
       case 6:
         return (
-          <div className="text-center space-y-6">
-            <div className="mx-auto w-20 h-20 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-10 h-10 text-white" />
+          <div className="text-center space-y-4">
+            <div className="flex justify-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-8 h-8 text-green-600" />
+              </div>
             </div>
-            <div>
-              <h2 className="text-3xl font-bold mb-4 text-white">
-                Setup Complete!
-              </h2>
-              <p className="text-lg text-slate-300 max-w-2xl mx-auto">
-                Your AI voice agent is ready to be deployed. Here's what we've configured:
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-              <Card className="bg-slate-800 border-slate-700">
-                <CardHeader>
-                  <CardTitle className="text-white">Agent Configuration</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-left">
-                  <div className="flex justify-between">
-                    <span className="text-slate-300">Type:</span>
-                    <span className="text-white font-semibold capitalize">
-                      {data.agentType} Agent
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-300">Business:</span>
-                    <span className="text-white font-semibold">{data.businessName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-300">Hours:</span>
-                    <span className="text-white font-semibold">
-                      {data.businessHours.start} - {data.businessHours.end}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-300">Files Uploaded:</span>
-                    <span className="text-white font-semibold">
-                      {data.uploadedFiles.length} file(s)
-                    </span>
-                  </div>
-                  {data.uploadedFileResults.length > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-300">Files Processed:</span>
-                      <span className="text-white font-semibold">
-                        {data.uploadedFileResults.length} file(s) with vectors
-                      </span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-              <Card className="bg-slate-800 border-slate-700">
-                <CardHeader>
-                  <CardTitle className="text-white">Next Steps</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-left">
-                  <div className="flex items-center text-sm text-slate-300">
-                    <CheckCircle className="mr-2 h-4 w-4 text-green-400" />
-                    Phone number activation
-                  </div>
-                  <div className="flex items-center text-sm text-slate-300">
-                    <CheckCircle className="mr-2 h-4 w-4 text-green-400" />
-                    Agent training completion
-                  </div>
-                  <div className="flex items-center text-sm text-slate-300">
-                    <CheckCircle className="mr-2 h-4 w-4 text-green-400" />
-                    Dashboard access setup
-                  </div>
-                  <div className="flex items-center text-sm text-slate-300">
-                    <CheckCircle className="mr-2 h-4 w-4 text-green-400" />
-                    Email notifications
-                  </div>
-                </CardContent>
-              </Card>
+            <h3 className="text-xl font-semibold text-white">Onboarding Complete!</h3>
+            <p className="text-slate-300">
+              Your AI voice agent is ready to be configured. Here's what was set up:
+            </p>
+            <div className="bg-slate-800 rounded-lg p-4 text-left space-y-2">
+              <p className="text-slate-300">• <strong>Business:</strong> {data.businessName}</p>
+              <p className="text-slate-300">• <strong>Type:</strong> {data.businessType}</p>
+              <p className="text-slate-300">• <strong>Phone:</strong> {data.phoneNumber}</p>
+              {data.uploadedFileResults && data.uploadedFileResults.length > 0 && (
+                <p className="text-slate-300">
+                  • <strong>Files:</strong> {data.uploadedFileResults.length} file(s) uploaded successfully
+                </p>
+              )}
             </div>
           </div>
         );

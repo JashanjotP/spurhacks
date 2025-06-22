@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Upload, FileText, CheckCircle, X } from "lucide-react";
+import { Upload, FileText, CheckCircle, X, Database, HardDrive } from "lucide-react";
 import { fileUploadService } from "@/lib/supabase/file-upload-service";
 
 export default function TestUpload() {
@@ -69,13 +69,16 @@ export default function TestUpload() {
         <div className="text-center">
           <h1 className="text-3xl font-bold text-white mb-2">File Upload Test</h1>
           <p className="text-slate-300">
-            Test file uploads to Supabase Storage and check if files are stored correctly.
+            Test file uploads to Supabase Storage and database without vectorization.
           </p>
         </div>
 
         <Card className="bg-slate-900 border-slate-800">
           <CardHeader>
-            <CardTitle className="text-white">Upload Files</CardTitle>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Upload className="w-5 h-5" />
+              Upload Files
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center">
@@ -103,76 +106,87 @@ export default function TestUpload() {
 
             {files.length > 0 && (
               <div className="space-y-2">
-                <h4 className="font-semibold text-white">Selected Files:</h4>
+                <h4 className="text-white font-medium">Selected Files:</h4>
                 {files.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-slate-800 rounded">
-                    <div className="flex items-center space-x-2">
-                      <FileText className="h-4 w-4 text-blue-400" />
-                      <span className="text-slate-300">{file.name}</span>
+                  <div key={index} className="flex items-center justify-between bg-slate-800 p-3 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-slate-400" />
+                      <div>
+                        <p className="text-white font-medium">{file.name}</p>
+                        <p className="text-slate-400 text-sm">
+                          {(file.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs text-slate-400">
-                        {(file.size / 1024 / 1024).toFixed(2)} MB
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFile(index)}
-                        className="text-red-400 hover:text-red-300"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeFile(index)}
+                      className="text-red-400 hover:text-red-300"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
                   </div>
                 ))}
               </div>
             )}
 
-            <div className="flex space-x-4">
-              <Button
-                onClick={handleUpload}
-                disabled={files.length === 0 || isUploading}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                {isUploading ? "Uploading..." : "Upload Files"}
-              </Button>
-              <Button
-                onClick={checkStorageContents}
-                variant="outline"
-                className="border-slate-700 text-slate-300 hover:bg-slate-800"
-              >
-                Check Storage
-              </Button>
-            </div>
+            <Button
+              onClick={handleUpload}
+              disabled={files.length === 0 || isUploading}
+              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-700"
+            >
+              {isUploading ? "Uploading..." : "Upload Files"}
+            </Button>
           </CardContent>
         </Card>
 
         {error && (
-          <Alert className="border-red-700 bg-red-900/20">
-            <AlertDescription className="text-red-200">
-              <strong>Error:</strong> {error}
-            </AlertDescription>
+          <Alert className="bg-red-900/20 border-red-800">
+            <AlertDescription className="text-red-300">{error}</AlertDescription>
           </Alert>
         )}
 
         {uploadResults.length > 0 && (
           <Card className="bg-slate-900 border-slate-800">
             <CardHeader>
-              <CardTitle className="text-white flex items-center">
-                <CheckCircle className="mr-2 h-5 w-5 text-green-400" />
+              <CardTitle className="text-white flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-green-400" />
                 Upload Results
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {uploadResults.map((result, index) => (
-                  <div key={index} className="p-3 bg-slate-800 rounded">
-                    <div className="flex items-center space-x-2">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span className="text-slate-300 font-medium">{result.filename}</span>
+                  <div key={index} className="bg-slate-800 p-4 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-white font-medium">{result.filename}</h4>
+                      <div className="flex items-center gap-2">
+                        <Database className="w-4 h-4 text-blue-400" />
+                        <span className="text-slate-400 text-sm">DB: {result.id}</span>
+                      </div>
                     </div>
-                    <div className="text-xs text-slate-400 mt-1">
-                      ID: {result.id} | Size: {(result.file_size / 1024 / 1024).toFixed(2)} MB
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-slate-400">Type:</span>
+                        <span className="text-white ml-2">{result.file_type}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400">Size:</span>
+                        <span className="text-white ml-2">
+                          {(result.file_size / 1024 / 1024).toFixed(2)} MB
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400">Content Length:</span>
+                        <span className="text-white ml-2">{result.content.length} chars</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400">Uploaded:</span>
+                        <span className="text-white ml-2">
+                          {new Date(result.uploaded_at).toLocaleString()}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -184,16 +198,27 @@ export default function TestUpload() {
         {storageContents.length > 0 && (
           <Card className="bg-slate-900 border-slate-800">
             <CardHeader>
-              <CardTitle className="text-white">Storage Contents</CardTitle>
+              <CardTitle className="text-white flex items-center gap-2">
+                <HardDrive className="w-5 h-5 text-blue-400" />
+                Storage Contents
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 {storageContents.map((item, index) => (
-                  <div key={index} className="p-3 bg-slate-800 rounded">
-                    <div className="text-slate-300">{item.name}</div>
-                    <div className="text-xs text-slate-400">
-                      Size: {item.metadata?.size ? (item.metadata.size / 1024 / 1024).toFixed(2) + ' MB' : 'Unknown'}
+                  <div key={index} className="flex items-center justify-between bg-slate-800 p-3 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-slate-400" />
+                      <div>
+                        <p className="text-white font-medium">{item.name}</p>
+                        <p className="text-slate-400 text-sm">
+                          {item.metadata?.size ? `${(item.metadata.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}
+                        </p>
+                      </div>
                     </div>
+                    <span className="text-slate-400 text-sm">
+                      {new Date(item.updated_at).toLocaleString()}
+                    </span>
                   </div>
                 ))}
               </div>

@@ -1,76 +1,90 @@
-# Supabase Integration Setup
+# Supabase Setup Guide
 
-This guide will help you set up Supabase for the AI Voice Agent onboarding system.
+This guide will help you set up Supabase for the AI voice agent onboarding system.
 
 ## Prerequisites
 
-1. A Supabase account (sign up at [supabase.com](https://supabase.com))
-2. Node.js and npm installed
-3. The project dependencies installed
+- A Supabase account
+- Node.js and npm installed
+- Basic knowledge of SQL
 
 ## Step 1: Create a Supabase Project
 
 1. Go to [supabase.com](https://supabase.com) and sign in
 2. Click "New Project"
 3. Choose your organization
-4. Enter a project name (e.g., "ai-voice-agents")
-5. Enter a database password (save this securely)
-6. Choose a region close to your users
-7. Click "Create new project"
+4. Enter project details:
+   - **Name**: `spurhacks-ai-agent` (or your preferred name)
+   - **Database Password**: Generate a strong password
+   - **Region**: Choose closest to your users
+5. Click "Create new project"
+6. Wait for the project to be created (usually 1-2 minutes)
 
-## Step 2: Set Up Environment Variables
+## Step 2: Get Your Project Credentials
 
-1. In your Supabase project dashboard, go to Settings > API
+1. Go to **Settings** → **API** in your Supabase dashboard
 2. Copy the following values:
-   - Project URL
-   - Anon public key
+   - **Project URL** (starts with `https://`)
+   - **anon public** key (starts with `eyJ`)
 
-3. Create a `.env.local` file in the `frontend` directory:
+## Step 3: Set Up Environment Variables
+
+Create a `.env.local` file in your `frontend` directory:
 
 ```bash
+# Supabase Configuration
 NEXT_PUBLIC_SUPABASE_URL=your_project_url_here
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
+
+# Google OAuth (for authentication)
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id_here
 ```
 
-## Step 3: Run Database Migrations
+## Step 4: Run Database Migrations
 
-1. In your Supabase dashboard, go to the SQL Editor
-2. Run the following SQL scripts in order:
+1. Go to **SQL Editor** in your Supabase dashboard
+2. Run the following scripts in order:
 
-### First, run the documents schema:
-```sql
--- Copy and paste the contents of frontend/src/scripts/documents.sql
-```
-
-### Then, run the onboarding schema:
+### 4.1 Onboarding Schema
 ```sql
 -- Copy and paste the contents of frontend/src/scripts/onboarding.sql
 ```
 
-## Step 4: Configure Authentication
+### 4.2 Documents Schema
+```sql
+-- Copy and paste the contents of frontend/src/scripts/documents.sql
+```
 
-1. In your Supabase dashboard, go to Authentication > Providers
-2. Enable Google OAuth:
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+### 4.3 Storage Setup
+```sql
+-- Copy and paste the contents of frontend/src/scripts/storage-setup.sql
+```
+
+## Step 5: Set Up Authentication
+
+### 5.1 Enable Google OAuth
+
+1. Go to **Authentication** → **Providers** in your Supabase dashboard
+2. Find **Google** and click **Enable**
+3. You'll need to create a Google OAuth application:
+   - Go to [Google Cloud Console](https://console.cloud.google.com)
    - Create a new project or select existing one
    - Enable Google+ API
-   - Go to Credentials > Create Credentials > OAuth 2.0 Client ID
-   - Set authorized redirect URI to: `https://your-project-ref.supabase.co/auth/v1/callback`
-   - Copy the Client ID and Client Secret
-   - Back in Supabase, paste these values and enable Google provider
+   - Go to **Credentials** → **Create Credentials** → **OAuth 2.0 Client IDs**
+   - Set application type to **Web application**
+   - Add authorized redirect URIs:
+     - `https://your-project-ref.supabase.co/auth/v1/callback`
+     - `http://localhost:3000/auth/callback` (for development)
+4. Copy the **Client ID** and **Client Secret** to Supabase
+5. Save the configuration
 
-## Step 5: Configure Row Level Security (RLS)
+### 5.2 Configure Site URL
 
-The SQL scripts already include RLS policies, but verify they're working:
+1. Go to **Authentication** → **Settings** in your Supabase dashboard
+2. Set **Site URL** to `http://localhost:3000` (for development)
+3. Add `http://localhost:3000/auth/callback` to **Redirect URLs**
 
-1. Go to Authentication > Policies in your Supabase dashboard
-2. Ensure the following tables have RLS enabled:
-   - `businesses`
-   - `onboarding_sessions`
-   - `documents`
-   - `document_chunks`
-
-## Step 6: Test the Integration
+## Step 6: Test the Setup
 
 1. Start your development server:
 ```bash
@@ -78,40 +92,32 @@ cd frontend
 npm run dev
 ```
 
-2. Navigate to `http://localhost:3000/dashboard/onboarding`
-3. You should be prompted to sign in with Google
-4. Complete the onboarding process
-5. Check your Supabase dashboard > Table Editor to see the data
+2. Visit `http://localhost:3000`
+3. Try to sign up/sign in with Google
+4. Test the onboarding flow
+5. Test file upload functionality
 
 ## Database Schema Overview
 
-### Tables Created:
+The system uses these main tables:
 
-1. **businesses** - Stores business information from onboarding
-   - `id` (text, primary key)
-   - `user_id` (uuid, foreign key to auth.users)
-   - `name` (text)
-   - `business_type` (text)
-   - `agent_type` (text, enum: 'faq', 'booking', 'order')
-   - `business_hours` (jsonb)
-   - `greeting` (text)
-   - `phone_number` (text)
-   - `website_url` (text, nullable)
-   - `created_at` (timestamp)
-   - `updated_at` (timestamp)
-
-2. **onboarding_sessions** - Tracks onboarding progress
+1. **onboarding_sessions** - Stores onboarding progress
    - `id` (uuid, primary key)
    - `user_id` (uuid, foreign key to auth.users)
-   - `business_id` (text, foreign key to businesses, nullable)
    - `current_step` (integer)
-   - `completed` (boolean)
-   - `onboarding_data` (jsonb)
+   - `data` (jsonb)
    - `created_at` (timestamp)
    - `updated_at` (timestamp)
-   - `completed_at` (timestamp, nullable)
 
-3. **documents** - Stores uploaded knowledge base files
+2. **businesses** - Stores business information
+   - `id` (uuid, primary key)
+   - `user_id` (uuid, foreign key to auth.users)
+   - `name` (text)
+   - `type` (text)
+   - `phone_number` (text)
+   - `created_at` (timestamp)
+
+3. **documents** - Stores uploaded documents
    - `id` (uuid, primary key)
    - `user_id` (uuid, foreign key to auth.users)
    - `business_id` (text)
@@ -122,17 +128,6 @@ npm run dev
    - `uploaded_at` (timestamp)
    - `created_at` (timestamp)
    - `updated_at` (timestamp)
-
-4. **document_chunks** - Stores document chunks with embeddings
-   - `id` (uuid, primary key)
-   - `document_id` (uuid, foreign key to documents)
-   - `user_id` (uuid, foreign key to auth.users)
-   - `business_id` (text)
-   - `chunk_index` (integer)
-   - `content` (text)
-   - `embedding` (vector(1536), nullable)
-   - `metadata` (jsonb)
-   - `created_at` (timestamp)
 
 ## Features
 
@@ -145,7 +140,7 @@ npm run dev
 - Multi-step wizard with progress tracking
 - Session persistence
 - Business creation with phone number generation
-- Document upload support (ready for future implementation)
+- Document upload support
 
 ### Business Management
 - View all user businesses
@@ -154,8 +149,8 @@ npm run dev
 - Statistics dashboard
 
 ### Document Management
-- Upload documents with chunking
-- Vector search capabilities (requires embeddings)
+- Upload documents to Supabase Storage
+- Basic text search functionality
 - Business-specific document organization
 
 ## Troubleshooting
@@ -172,10 +167,10 @@ npm run dev
    - Verify RLS policies are in place
    - Check table permissions
 
-3. **Vector search not working**
-   - Ensure pgvector extension is enabled
-   - Check that embeddings are being generated
-   - Verify the search function exists
+3. **File upload not working**
+   - Ensure storage bucket is created
+   - Check storage policies
+   - Verify file size limits
 
 ### Getting Help
 
@@ -185,8 +180,8 @@ npm run dev
 
 ## Next Steps
 
-1. Implement document upload functionality
-2. Add embedding generation for document chunks
-3. Implement vector search for knowledge base queries
+1. Implement better text extraction for PDFs and Word documents
+2. Add file preview functionality
+3. Implement document versioning
 4. Add phone number provisioning integration
 5. Implement agent deployment functionality 

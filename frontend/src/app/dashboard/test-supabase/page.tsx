@@ -328,20 +328,20 @@ export default function TestSupabasePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <h4 className="text-white font-medium">Core Tables</h4>
-                <ul className="text-slate-300 text-sm space-y-1">
+                <ul className="list-disc list-inside space-y-1 text-sm text-slate-300">
+                  <li>• <strong>onboarding_sessions</strong> - Onboarding progress tracking</li>
                   <li>• <strong>businesses</strong> - Business information</li>
-                  <li>• <strong>onboarding_sessions</strong> - Onboarding progress</li>
-                  <li>• <strong>documents</strong> - Knowledge base files</li>
-                  <li>• <strong>document_chunks</strong> - Document chunks with embeddings</li>
+                  <li>• <strong>documents</strong> - Uploaded documents</li>
                 </ul>
               </div>
               <div className="space-y-2">
                 <h4 className="text-white font-medium">Features</h4>
-                <ul className="text-slate-300 text-sm space-y-1">
-                  <li>• Row Level Security (RLS) enabled</li>
-                  <li>• Vector search capabilities</li>
-                  <li>• Automatic timestamps</li>
-                  <li>• Foreign key relationships</li>
+                <ul className="list-disc list-inside space-y-1 text-sm text-slate-300">
+                  <li>• User authentication and session management</li>
+                  <li>• Multi-step onboarding wizard</li>
+                  <li>• Business creation and management</li>
+                  <li>• Document upload and storage</li>
+                  <li>• Basic text search functionality</li>
                 </ul>
               </div>
             </div>

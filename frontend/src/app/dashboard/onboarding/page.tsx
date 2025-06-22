@@ -111,21 +111,16 @@ export default function Onboarding() {
               <br />
               <strong>Summary:</strong>
               <br />
-              • Agent Type: {completedData.agentType} Agent
-              <br />
-              • Business: {completedData.businessName}
-              <br />
-              • Phone Number: {businessData.phone_number}
-              <br />
-              • Business Hours: {completedData.businessHours.start} - {completedData.businessHours.end}
-              <br />
-              • Files Uploaded: {completedData.uploadedFiles.length} file(s)
-              {completedData.uploadedFileResults.length > 0 && (
-                <>
-                  <br />
-                  • Files Processed: {completedData.uploadedFileResults.length} file(s) with vector embeddings
-                </>
-              )}
+              <div className="bg-slate-800 rounded-lg p-4 text-left space-y-2">
+                <p className="text-slate-300">• <strong>Business:</strong> {completedData.businessName}</p>
+                <p className="text-slate-300">• <strong>Type:</strong> {completedData.businessType}</p>
+                <p className="text-slate-300">• <strong>Phone:</strong> {completedData.phoneNumber}</p>
+                {completedData.uploadedFileResults && completedData.uploadedFileResults.length > 0 && (
+                  <p className="text-slate-300">
+                    • <strong>Files:</strong> {completedData.uploadedFileResults.length} file(s) uploaded successfully
+                  </p>
+                )}
+              </div>
               <br />
               <br />
               <strong>Database Info:</strong>
@@ -154,21 +149,16 @@ export default function Onboarding() {
               <br />
               <strong>Summary:</strong>
               <br />
-              • Agent Type: {completedData.agentType} Agent
-              <br />
-              • Business: {completedData.businessName}
-              <br />
-              • Phone Number: {completedData.phoneNumber}
-              <br />
-              • Business Hours: {completedData.businessHours.start} - {completedData.businessHours.end}
-              <br />
-              • Files Uploaded: {completedData.uploadedFiles.length} file(s)
-              {completedData.uploadedFileResults.length > 0 && (
-                <>
-                  <br />
-                  • Files Processed: {completedData.uploadedFileResults.length} file(s) with vector embeddings
-                </>
-              )}
+              <div className="bg-slate-800 rounded-lg p-4 text-left space-y-2">
+                <p className="text-slate-300">• <strong>Business:</strong> {completedData.businessName}</p>
+                <p className="text-slate-300">• <strong>Type:</strong> {completedData.businessType}</p>
+                <p className="text-slate-300">• <strong>Phone:</strong> {completedData.phoneNumber}</p>
+                {completedData.uploadedFileResults && completedData.uploadedFileResults.length > 0 && (
+                  <p className="text-slate-300">
+                    • <strong>Files:</strong> {completedData.uploadedFileResults.length} file(s) uploaded successfully
+                  </p>
+                )}
+              </div>
               <br />
               <br />
               <em>Note: Data was saved locally but business record creation failed.</em>

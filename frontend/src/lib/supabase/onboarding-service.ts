@@ -59,18 +59,6 @@ export interface Document {
   updated_at: string;
 }
 
-export interface DocumentChunk {
-  id: string;
-  document_id: string;
-  user_id: string;
-  business_id: string;
-  chunk_index: number;
-  content: string;
-  embedding?: number[];
-  metadata: Record<string, any>;
-  created_at: string;
-}
-
 class SupabaseOnboardingService {
   private supabase = createClient();
   private demoUserId = "demo-user-123"; // Fallback user ID for testing
@@ -358,13 +346,12 @@ class SupabaseOnboardingService {
   }
 
   /**
-   * Upload document and create chunks
+   * Upload document to storage and database
    */
   async uploadDocument(
     businessId: string, 
     file: File, 
-    content: string,
-    chunks: Array<{ content: string; index: number; embedding?: number[] }>
+    content: string
   ): Promise<Document | null> {
     try {
       const user = await this.getCurrentUser();
@@ -385,23 +372,6 @@ class SupabaseOnboardingService {
 
       if (docError) throw docError;
 
-      // Create document chunks
-      const chunkData = chunks.map(chunk => ({
-        document_id: document.id,
-        user_id: user.id,
-        business_id: businessId,
-        chunk_index: chunk.index,
-        content: chunk.content,
-        embedding: chunk.embedding,
-        metadata: {}
-      }));
-
-      const { error: chunksError } = await this.supabase
-        .from('document_chunks')
-        .insert(chunkData);
-
-      if (chunksError) throw chunksError;
-
       return document;
     } catch (error) {
       console.error('Error uploading document:', error);
@@ -410,65 +380,53 @@ class SupabaseOnboardingService {
   }
 
   /**
-   * Search documents for a business
+   * Migrate business data from localStorage to Supabase
    */
-  async searchBusinessDocuments(
-    businessId: string, 
-    queryEmbedding: number[], 
-    matchThreshold: number = 0.7, 
-    matchCount: number = 5
-  ): Promise<Array<{ id: string; content: string; similarity: number; metadata: any; filename: string }>> {
+  async migrateBusinessData(businessId: string, businessData: any): Promise<boolean> {
+    try {
+      const user = await this.getCurrentUser();
+
+      // Update business record
+      const { error: businessError } = await this.supabase
+        .from('businesses')
+        .update({
+          name: businessData.name,
+          type: businessData.type,
+          phone_number: businessData.phoneNumber,
+        })
+        .eq('id', businessId)
+        .eq('user_id', user.id);
+
+      if (businessError) {
+        console.error('Error migrating business data:', businessError);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error migrating business data:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Search documents by text query
+   */
+  async searchDocuments(query: string, businessId: string, limit: number = 5): Promise<Document[]> {
     try {
       const { data, error } = await this.supabase
-        .rpc('search_business_documents', {
-          business_uuid: businessId,
-          query_embedding: queryEmbedding,
-          match_threshold: matchThreshold,
-          match_count: matchCount
-        });
+        .from('documents')
+        .select('*')
+        .eq('business_id', businessId)
+        .or(`filename.ilike.%${query}%,content.ilike.%${query}%`)
+        .order('uploaded_at', { ascending: false })
+        .limit(limit);
 
       if (error) throw error;
       return data || [];
     } catch (error) {
       console.error('Error searching documents:', error);
       return [];
-    }
-  }
-
-  /**
-   * Get all documents for a business
-   */
-  async getBusinessDocuments(businessId: string): Promise<Document[]> {
-    try {
-      const { data, error } = await this.supabase
-        .from('documents')
-        .select('*')
-        .eq('business_id', businessId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error('Error getting business documents:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Delete business and all related data
-   */
-  async deleteBusiness(businessId: string): Promise<boolean> {
-    try {
-      const { error } = await this.supabase
-        .from('businesses')
-        .delete()
-        .eq('id', businessId);
-
-      if (error) throw error;
-      return true;
-    } catch (error) {
-      console.error('Error deleting business:', error);
-      return false;
     }
   }
 

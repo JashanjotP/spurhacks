@@ -12,15 +12,8 @@ export interface UploadedFile {
 }
 
 export class FileUploadService {
-  private static instance: FileUploadService;
-
-  private constructor() {}
-
-  public static getInstance(): FileUploadService {
-    if (!FileUploadService.instance) {
-      FileUploadService.instance = new FileUploadService();
-    }
-    return FileUploadService.instance;
+  constructor() {
+    console.log('📁 FileUploadService initialized');
   }
 
   async uploadFiles(files: File[], businessId: string): Promise<UploadedFile[]> {
@@ -102,13 +95,6 @@ export class FileUploadService {
           uploaded_at: documentData.uploaded_at,
         });
 
-        // Trigger vector processing
-        console.log(`🧠 Starting vector processing...`);
-        const vectorStartTime = Date.now();
-        await this.processDocumentForVectors(documentData.id, content, businessId);
-        const vectorTime = Date.now() - vectorStartTime;
-        console.log(`⏱️ Vector processing took ${vectorTime}ms`);
-
         const totalTime = Date.now() - startTime;
         console.log(`🎉 File ${file.name} completed in ${totalTime}ms total`);
 
@@ -165,47 +151,8 @@ export class FileUploadService {
   }
 
   private getFileExtension(filename: string): string {
-    return filename.split('.').pop()?.toLowerCase() || 'unknown';
-  }
-
-  private async processDocumentForVectors(documentId: string, content: string, businessId: string) {
-    try {
-      console.log(`🧠 Processing document ${documentId} for vectors...`);
-      console.log(`📝 Content length: ${content.length} characters`);
-      
-      const apiStartTime = Date.now();
-      
-      // Call the API route to process the document
-      console.log(`🌐 Making API call to /api/documents/process...`);
-      const response = await fetch('/api/documents/process', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          documentId,
-          content,
-          businessId,
-        }),
-      });
-
-      const apiTime = Date.now() - apiStartTime;
-      console.log(`⏱️ API call took ${apiTime}ms`);
-      console.log(`📡 Response status: ${response.status}`);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`❌ API error response:`, errorText);
-        throw new Error(`Failed to process document: ${response.statusText} - ${errorText}`);
-      }
-
-      const result = await response.json();
-      console.log(`✅ Document processed for vectors:`, result);
-      
-    } catch (error) {
-      console.error('❌ Error processing document for vectors:', error);
-      // Don't throw here - we don't want to fail the upload if vector processing fails
-    }
+    const parts = filename.split('.');
+    return parts.length > 1 ? parts[parts.length - 1] : 'unknown';
   }
 
   async getDocumentsByBusiness(businessId: string): Promise<UploadedFile[]> {
@@ -246,7 +193,7 @@ export class FileUploadService {
       // Continue with database deletion even if storage deletion fails
     }
 
-    // Delete from database (this will cascade to document_chunks)
+    // Delete from database
     const { error: dbError } = await supabase
       .from('documents')
       .delete()
@@ -278,4 +225,4 @@ export class FileUploadService {
   }
 }
 
-export const fileUploadService = FileUploadService.getInstance(); 
+export const fileUploadService = new FileUploadService(); 
