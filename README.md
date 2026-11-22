@@ -1,4 +1,5 @@
-# A Friendly Voice for Your Business
+# Front-desk AI: A Friendly Voice for Your Business
+## Conversational AI Agent
 
 This project is a helper for small and mid-sized businesses that want an AI to answer their phone calls. You can set it up easily without writing any code. Once it's ready, it can handle common questions, book appointments, and more, all through a simple phone call.
 
