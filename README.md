@@ -1,7 +1,7 @@
-# Front-desk AI: A Friendly Voice for Your Business
+# Front-Desk AI: A Friendly Voice for Your Business
 ## Conversational AI Agent
 
-This project is a helper for small and mid-sized businesses that want an AI to answer their phone calls. You can set it up easily without writing any code. Once it's ready, it can handle common questions, book appointments, and more, all through a simple phone call.
+This project is a helper for small and mid-sized businesses that want an AI to answer their phone calls. You can set it up easily without writing any code. It can handle common questions, book appointments, and more, all through a simple phone call.
 
 ---
 
@@ -85,13 +85,13 @@ Building this has been a learning experience. We ran into a tricky bug with our 
 
 ---
 
-### Our Plan to Get to the First Version
+### Phases of our development
 
-1.  **Phase 1 (2.5h)**: Get the project started and test the phones.
-2.  **Phase 2 (6h)**: Build the main call flow (listening, thinking, speaking).
-3.  **Phase 3 (6h)**: Create the dashboard with login and call history.
-4.  **Phase 4 (3.5h)**: Teach the AI to learn from documents.
-5.  **Phase 5 (2h)**: Test everything, polish the design, and get ready for a demo.
+1.  **Phase 1**: Get the project started and test the phones.
+2.  **Phase 2**: Build the main call flow (listening, thinking, speaking).
+3.  **Phase 3**: Create the dashboard with login and call history.
+4.  **Phase 4**: Teach the AI to learn from documents.
+5.  **Phase 5**: Test everything, polish the design, and get ready for a demo.
 
 ---
 
@@ -107,4 +107,4 @@ We'd love for you to contribute! Here's how you can help:
 
 ## License
 
-MIT © Your Company
+MIT © Front-Desk AI
